@@ -18,7 +18,8 @@ python fetch_provisions_csv.py [resource]
 
 引数 `resource` を省略すると `provisions` エンドポイントを利用します。`reservations`
 など別のリソースを取得したい場合は `python fetch_provisions_csv.py reservations` のように
-指定してください。環境変数 `TAP_RESOURCE` でも同様に切り替えられます。
+指定してください。単数形 (`reservation` など) で指定した場合も自動的に正しい
+エンドポイントへ置き換えます。環境変数 `TAP_RESOURCE` でも同様に切り替えられます。
 
 実行すると `data/` ディレクトリが自動で作成され、`{resource}_YYYYMMDDHHMMSS.json` と
 `{resource}_YYYYMMDDHHMMSS.csv` の 2 つのファイルが出力されます (`resource` は使用した

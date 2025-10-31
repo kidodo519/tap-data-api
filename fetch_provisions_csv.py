@@ -26,14 +26,35 @@ def _load_env() -> None:
 
     load_dotenv(ENV_PATH)
 
+_RESOURCE_ALIASES = {
+    "provision": "provisions",
+    "reservation": "reservations",
+}
+
+
+def _normalise_resource(resource: str) -> str:
+    """Resolve resource aliases to actual endpoint names."""
+
+    plain = resource.strip("/")
+    if not plain:
+        return "provisions"
+
+    # Only substitute when the entire segment matches to avoid altering nested paths.
+    replacement = _RESOURCE_ALIASES.get(plain.lower())
+    if replacement:
+        if resource != replacement:
+            print(f"(info) '{resource}' を '{replacement}' に置き換えてアクセスします。")
+        return replacement
+    return plain
+
 
 def _determine_resource(argv: Sequence[str]) -> str:
     if len(argv) > 1 and argv[1]:
-        return argv[1].lstrip("/")
+        return _normalise_resource(argv[1])
 
     env_resource = os.getenv("TAP_RESOURCE")
     if env_resource:
-        return env_resource.lstrip("/")
+        return _normalise_resource(env_resource)
 
     return "provisions"
 
