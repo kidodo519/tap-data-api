@@ -8,7 +8,8 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Mapping, MutableMapping, Sequence
+from collections.abc import Mapping, MutableMapping, Sequence
+from typing import List
 
 import requests
 from dotenv import load_dotenv
@@ -26,7 +27,40 @@ def _load_env() -> None:
     load_dotenv(ENV_PATH)
 
 
-def _build_request() -> tuple[str, Mapping[str, str]]:
+_RESOURCE_ALIASES = {
+    "provision": "provisions",
+    "reservation": "reservations",
+}
+
+
+def _normalise_resource(resource: str) -> str:
+    """Resolve resource aliases to actual endpoint names."""
+
+    plain = resource.strip("/")
+    if not plain:
+        return "provisions"
+
+    # Only substitute when the entire segment matches to avoid altering nested paths.
+    replacement = _RESOURCE_ALIASES.get(plain.lower())
+    if replacement:
+        if resource != replacement:
+            print(f"(info) '{resource}' を '{replacement}' に置き換えてアクセスします。")
+        return replacement
+    return plain
+
+
+def _determine_resource(argv: Sequence[str]) -> str:
+    if len(argv) > 1 and argv[1]:
+        return _normalise_resource(argv[1])
+
+    env_resource = os.getenv("TAP_RESOURCE")
+    if env_resource:
+        return _normalise_resource(env_resource)
+
+    return "provisions"
+
+
+def _build_request(resource: str) -> tuple[str, Mapping[str, str]]:
     api_base = os.getenv("API_BASE")
     hotel_code = os.getenv("HOTEL_CODE")
     api_key = os.getenv("TAP_API_KEY")
@@ -47,7 +81,7 @@ def _build_request() -> tuple[str, Mapping[str, str]]:
         )
         sys.exit(2)
 
-    url = f"{api_base.rstrip('/')}/hotels/{hotel_code}/provisions"
+    url = f"{api_base.rstrip('/')}/hotels/{hotel_code}/{resource}"
     headers = {
         "Accept": "application/json",
         "X-API-Key": api_key,
@@ -102,7 +136,47 @@ def _ensure_records(payload: object) -> List[MutableMapping[str, object]]:
     return records
 
 
-def _collect_columns(records: Sequence[Mapping[str, object]]) -> List[str]:
+def _flatten_value(value: object, prefix: str, flattened: MutableMapping[str, str]) -> None:
+    if isinstance(value, Mapping):
+        if not value:
+            target = prefix or "value"
+            flattened[target] = ""
+        else:
+            for key, nested in value.items():
+                next_prefix = f"{prefix}.{key}" if prefix else str(key)
+                _flatten_value(nested, next_prefix, flattened)
+        return
+
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        if not value:
+            target = prefix or "value"
+            flattened[target] = ""
+        else:
+            for index, item in enumerate(value):
+                base = prefix or "value"
+                next_prefix = f"{base}[{index}]"
+                _flatten_value(item, next_prefix, flattened)
+        return
+
+    target = prefix or "value"
+    flattened[target] = _serialise_value(value)
+
+
+def _normalise_records(
+    records: Sequence[Mapping[str, object]]
+) -> List[dict[str, str]]:
+    normalised: List[dict[str, str]] = []
+    for record in records:
+        flattened: dict[str, str] = {}
+        for key, value in record.items():
+            _flatten_value(value, str(key), flattened)
+        if not flattened:
+            flattened["value"] = ""
+        normalised.append(flattened)
+    return normalised
+
+
+def _collect_columns(records: Sequence[Mapping[str, str]]) -> List[str]:
     columns: set[str] = set()
     for record in records:
         columns.update(record.keys())
@@ -120,27 +194,34 @@ def _serialise_value(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def _write_files(response: requests.Response, records: Sequence[Mapping[str, object]]) -> None:
+def _write_files(
+    response: requests.Response,
+    resource: str,
+    records: Sequence[Mapping[str, object]],
+) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    json_path = DATA_DIR / f"provisions_{stamp}.json"
-    csv_path = DATA_DIR / f"provisions_{stamp}.csv"
+    resource_slug = resource.replace("/", "_") or "resource"
+    json_path = DATA_DIR / f"{resource_slug}_{stamp}.json"
+    csv_path = DATA_DIR / f"{resource_slug}_{stamp}.csv"
 
     json_path.write_text(response.text, encoding=response.encoding or "utf-8")
     print(f"Saved JSON : {json_path} ({json_path.stat().st_size} bytes)")
 
-    columns = _collect_columns(records)
+    normalised = _normalise_records(records)
+    columns = _collect_columns(normalised)
     with csv_path.open("w", encoding="utf-8-sig", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()
-        for record in records:
-            writer.writerow({column: _serialise_value(record.get(column)) for column in columns})
+        for record in normalised:
+            writer.writerow({column: record.get(column, "") for column in columns})
     print(f"Saved CSV  : {csv_path} ({csv_path.stat().st_size} bytes)")
 
 
 def main() -> None:
     _load_env()
-    url, headers = _build_request()
+    resource = _determine_resource(sys.argv)
+    url, headers = _build_request(resource)
     response = _request_json(url, headers)
 
     try:
@@ -150,7 +231,7 @@ def main() -> None:
         sys.exit(6)
 
     records = _ensure_records(payload)
-    _write_files(response, records)
+    _write_files(response, resource, records)
 
     preview = json.dumps(payload, ensure_ascii=False, indent=2)
     print(preview[:10000])
