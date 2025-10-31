@@ -26,7 +26,6 @@ def _load_env() -> None:
 
     load_dotenv(ENV_PATH)
 
-
 _RESOURCE_ALIASES = {
     "provision": "provisions",
     "reservation": "reservations",
