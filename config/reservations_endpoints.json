@@ -1,0 +1,58 @@
+[
+  {
+    "name": "reservations",
+    "path": "reservations",
+    "params": {
+      "from_reservation_date": "{reservation_date}",
+      "to_reservation_date": "{reservation_date}"
+    },
+    "context_fields": [
+      "reservation_date"
+    ],
+    "children": [
+      {
+        "name": "reservation_rooms",
+        "path": "reservations/{reservation_id}/rooms",
+        "context_fields": [
+          "reservation_id",
+          "reservation_date"
+        ],
+        "children": [
+          {
+            "name": "reservation_room_check_in",
+            "path": "reservations/{reservation_id}/rooms/{room_reservation_id}/check-in",
+            "context_fields": [
+              "reservation_id",
+              "room_reservation_id",
+              "reservation_date"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "reservation_meal_reservations",
+        "path": "reservations/{reservation_id}/meal-reservations",
+        "context_fields": [
+          "reservation_id",
+          "reservation_date"
+        ]
+      },
+      {
+        "name": "reservation_slip_reservations",
+        "path": "reservations/{reservation_id}/slip-reservations",
+        "context_fields": [
+          "reservation_id",
+          "reservation_date"
+        ]
+      },
+      {
+        "name": "reservation_revenue",
+        "path": "reservations/{reservation_id}/revenue",
+        "context_fields": [
+          "reservation_id",
+          "reservation_date"
+        ]
+      }
+    ]
+  }
+]
