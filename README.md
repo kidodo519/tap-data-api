@@ -21,18 +21,19 @@ python fetch_provisions_csv.py [resource]
 指定してください。単数形 (`reservation` など) で指定した場合も自動的に正しい
 エンドポイントへ置き換えます。環境変数 `TAP_RESOURCE` でも同様に切り替えられます。
 
-実行すると `data/` ディレクトリが自動で作成され、`{resource}_YYYYMMDDHHMMSS.json` と
-`{resource}_YYYYMMDDHHMMSS.csv` の 2 つのファイルが出力されます (`resource` は使用した
-エンドポイント名)。CSV にはレスポンス内の全てのキーがドット (`.`) やインデックス
-(`[0]` など) を使ったフラットな列名として展開されるため、ネストされたオブジェクトや
-配列の内容もセルごとに確認できます。
+実行すると `data/` ディレクトリが自動で作成され、`{resource}_YYYYMMDDHHMMSS.csv`
+(`resource` は使用したエンドポイント名) が出力されます。CSV にはレスポンス内の全てのキーが
+ドット (`.`) やインデックス (`[0]` など) を使ったフラットな列名として展開されるため、
+ネストされたオブジェクトや配列の内容もセルごとに確認できます。
 
 ### 予約関連 API を日次で収集する
 予約一覧と、その予約 ID を使う関連エンドポイントをまとめて取得したい場合は
 `fetch_reservations_csv.py` を使用します。設定ファイル `config/reservations_endpoints.json`
 に呼び出すエンドポイントと付随するパラメーターを列挙しておくと、スクリプトが順番に
-リクエストを実行し CSV として保存します。既定では JST の「昨日」を予約日として
-`GET /hotels/{hotel_id}/reservations?from_reservation_date=...&to_reservation_date=...` を呼び出し、
+リクエストを実行し CSV として保存します。予約日の範囲は `config/reservation_date_range.json`
+に JSON 形式で保存しておくと読み込まれます (`{"from": "2025-01-01", "to": "2025-01-07"}` のように
+指定)。雛形として `config/reservation_date_range.json.example` を用意しているのでコピーして使用して
+ください。ファイルが存在しない場合は JST の「昨日」が `from`/`to` 共通の日付として利用されます。
 取得した予約の `reservation_id` を使って子エンドポイントも呼び出します。
 
 ```bash
@@ -41,8 +42,14 @@ python fetch_reservations_csv.py
 
 オプション:
 
-- `--date`: `YYYY-MM-DD` 形式で予約日を指定できます。省略時は JST の昨日になります。
+- `--date`: `YYYY-MM-DD` 形式で単一日を指定できます。`from`/`to` の両方に同じ日付が適用されます。
+- `--from-date`, `--to-date`: `YYYY-MM-DD` 形式で予約日の開始・終了を指定します。セットで使用します。
+- `--date-range-file`: `from`/`to` を保持した JSON ファイルのパスを指定します。省略時は
+  `config/reservation_date_range.json` を読み込みます。
 - `--config`: デフォルト以外のエンドポイント設定ファイルを使用する場合に指定します。
+
+予約エンドポイントで追加の列を必ず出力したい場合は、`config/reservations_endpoints.json` の
+`ensure_columns` に列名を追記してください。
 
 スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` が
 出力されます。JSON は保存されません。レスポンスが空の場合でも、設定した

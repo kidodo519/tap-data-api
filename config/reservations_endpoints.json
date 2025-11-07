@@ -3,11 +3,25 @@
     "name": "reservations",
     "path": "reservations",
     "params": {
-      "from_reservation_date": "{reservation_date}",
-      "to_reservation_date": "{reservation_date}"
+      "from_reservation_date": "{reservation_date_from}",
+      "to_reservation_date": "{reservation_date_to}"
     },
     "context_fields": [
-      "reservation_date"
+      "reservation_date_from",
+      "reservation_date_to"
+    ],
+    "ensure_columns": [
+      "check_in_date",
+      "created_at",
+      "status",
+      "last_modified",
+      "person_count",
+      "agent_reservation_number",
+      "name",
+      "address",
+      "phone_no",
+      "email",
+      "customer_number"
     ],
     "children": [
       {
@@ -15,7 +29,8 @@
         "path": "reservations/{reservation_id}/rooms",
         "context_fields": [
           "reservation_id",
-          "reservation_date"
+          "reservation_date_from",
+          "reservation_date_to"
         ],
         "children": [
           {
@@ -24,7 +39,8 @@
             "context_fields": [
               "reservation_id",
               "room_reservation_id",
-              "reservation_date"
+              "reservation_date_from",
+              "reservation_date_to"
             ]
           }
         ]
@@ -34,7 +50,8 @@
         "path": "reservations/{reservation_id}/meal-reservations",
         "context_fields": [
           "reservation_id",
-          "reservation_date"
+          "reservation_date_from",
+          "reservation_date_to"
         ]
       },
       {
@@ -42,7 +59,8 @@
         "path": "reservations/{reservation_id}/slip-reservations",
         "context_fields": [
           "reservation_id",
-          "reservation_date"
+          "reservation_date_from",
+          "reservation_date_to"
         ]
       },
       {
@@ -50,7 +68,8 @@
         "path": "reservations/{reservation_id}/revenue",
         "context_fields": [
           "reservation_id",
-          "reservation_date"
+          "reservation_date_from",
+          "reservation_date_to"
         ]
       }
     ]

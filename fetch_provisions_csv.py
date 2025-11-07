@@ -193,19 +193,14 @@ def _serialise_value(value: object) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def _write_files(
-    response: requests.Response,
+def _write_csv(
     resource: str,
     records: Sequence[Mapping[str, object]],
 ) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d%H%M%S")
     resource_slug = resource.replace("/", "_") or "resource"
-    json_path = DATA_DIR / f"{resource_slug}_{stamp}.json"
     csv_path = DATA_DIR / f"{resource_slug}_{stamp}.csv"
-
-    json_path.write_text(response.text, encoding=response.encoding or "utf-8")
-    print(f"Saved JSON : {json_path} ({json_path.stat().st_size} bytes)")
 
     normalised = _normalise_records(records)
     columns = _collect_columns(normalised)
@@ -230,10 +225,7 @@ def main() -> None:
         sys.exit(6)
 
     records = _ensure_records(payload)
-    _write_files(response, resource, records)
-
-    preview = json.dumps(payload, ensure_ascii=False, indent=2)
-    print(preview[:10000])
+    _write_csv(resource, records)
 
 
 if __name__ == "__main__":
