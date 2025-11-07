@@ -103,19 +103,30 @@ def _load_config(path: Path) -> list[EndpointConfig]:
 
 
 def _determine_reservation_date(arg_value: str | None) -> str:
-    if arg_value:
+    default_date = None
+    if TIMEZONE is not None:
+        now = datetime.now(TIMEZONE)
+    else:
+        now = datetime.now()
+    default_date = (now - timedelta(days=1)).date()
+
+    candidate = arg_value
+    if not candidate and sys.stdin.isatty():
+        prompt = (
+            "予約日 (YYYY-MM-DD) を入力してください"
+            f" [Enter で {default_date.isoformat()} を使用]: "
+        )
+        candidate = input(prompt).strip() or None
+
+    if candidate:
         try:
-            parsed = datetime.strptime(arg_value, "%Y-%m-%d").date()
+            parsed = datetime.strptime(candidate, "%Y-%m-%d").date()
         except ValueError as exc:
             print(f"--date の形式が不正です (YYYY-MM-DD): {exc}", file=sys.stderr)
             sys.exit(1)
-    else:
-        if TIMEZONE is not None:
-            now = datetime.now(TIMEZONE)
-        else:
-            now = datetime.now()
-        parsed = (now - timedelta(days=1)).date()
-    return parsed.isoformat()
+        return parsed.isoformat()
+
+    return default_date.isoformat()
 
 
 def _build_headers(api_key: str) -> dict[str, str]:
@@ -173,6 +184,140 @@ def _coerce_records(payload: Any) -> list[MutableMapping[str, Any]]:
             )
     return records
 
+
+def _stringify_address(address: Mapping[str, Any]) -> str | None:
+    parts: list[str] = []
+    postal_code = address.get("postal_code")
+    if postal_code:
+        parts.append(str(postal_code))
+    prefecture = address.get("prefecture_code")
+    if prefecture:
+        parts.append(str(prefecture))
+    city = address.get("city")
+    if city:
+        parts.append(str(city))
+    lines = address.get("address_line")
+    if isinstance(lines, Sequence) and not isinstance(lines, (str, bytes, bytearray)):
+        parts.extend(str(item) for item in lines if item)
+    address_text = " ".join(part for part in parts if part).strip()
+    return address_text or None
+
+
+def _normalise_person_count(raw: Any) -> int | None:
+    if isinstance(raw, Sequence) and not isinstance(raw, (str, bytes, bytearray)):
+        total = 0
+        found = False
+        for item in raw:
+            if isinstance(item, (int, float)):
+                total += int(item)
+                found = True
+                continue
+            try:
+                total += int(str(item))
+            except (TypeError, ValueError):
+                continue
+            else:
+                found = True
+        return total if found else None
+    if isinstance(raw, (int, float)):
+        return int(raw)
+    try:
+        return int(str(raw))
+    except (TypeError, ValueError):
+        return None
+
+
+def _enrich_reservation_record(record: MutableMapping[str, Any]) -> None:
+    if "check_in_date" not in record:
+        stay_period = record.get("stay_period")
+        if isinstance(stay_period, Mapping):
+            check_in = stay_period.get("check_in") or stay_period.get("from")
+            if check_in:
+                record["check_in_date"] = check_in
+
+    if "created" in record:
+        record.setdefault("created_at", record["created"])
+
+    if "status" not in record:
+        control_status = record.get("control_status")
+        if isinstance(control_status, Mapping):
+            status = control_status.get("status")
+            if status is not None:
+                record["status"] = status
+    else:
+        status_value = record.get("status")
+        if _is_scalar(status_value):
+            record["status"] = status_value
+
+    if "last_modified" in record and not _is_scalar(record["last_modified"]):
+        last_modified = record["last_modified"]
+        if isinstance(last_modified, Mapping):
+            timestamp = last_modified.get("timestamp") or last_modified.get("value")
+            if timestamp:
+                record["last_modified"] = timestamp
+
+    raw_person_count = record.get("person_count")
+    normalised_person_count = _normalise_person_count(raw_person_count)
+    if normalised_person_count is not None:
+        record["person_count"] = normalised_person_count
+
+    main_guest = record.get("main_guest")
+    contact_source: Mapping[str, Any] | None = None
+    if isinstance(main_guest, Mapping):
+        contact_source = main_guest.get("person") if isinstance(main_guest.get("person"), Mapping) else None
+        if "customer_number" not in record:
+            customer_number = main_guest.get("customer_number")
+            if customer_number:
+                record["customer_number"] = customer_number
+
+    if contact_source is None:
+        reserved_by = record.get("reserved_by")
+        if isinstance(reserved_by, Mapping) and isinstance(reserved_by.get("person"), Mapping):
+            contact_source = reserved_by["person"]
+            if "customer_number" not in record:
+                customer_number = reserved_by.get("customer_number")
+                if customer_number:
+                    record["customer_number"] = customer_number
+
+    if contact_source is not None:
+        if "name" not in record:
+            name = contact_source.get("name") or contact_source.get("kana_name")
+            if name:
+                record["name"] = name
+
+        if "address" not in record and isinstance(contact_source.get("address"), Mapping):
+            formatted_address = _stringify_address(contact_source["address"])
+            if formatted_address:
+                record["address"] = formatted_address
+
+        if "phone_no" not in record:
+            phone = (
+                contact_source.get("phone_no")
+                or contact_source.get("phone_no_mobile")
+                or contact_source.get("phone_no_other")
+            )
+            if phone:
+                record["phone_no"] = phone
+
+        if "email" not in record:
+            email = contact_source.get("email") or contact_source.get("email_sub")
+            if email:
+                record["email"] = email
+
+    for key in (
+        "check_in_date",
+        "created_at",
+        "status",
+        "last_modified",
+        "person_count",
+        "agent_reservation_number",
+        "name",
+        "address",
+        "phone_no",
+        "email",
+        "customer_number",
+    ):
+        record.setdefault(key, "")
 
 def _augment_record(
     record: MutableMapping[str, Any],
@@ -370,6 +515,10 @@ def _process_endpoint(
     augmented: list[MutableMapping[str, Any]] = []
     for record in records:
         augmented.append(_augment_record(record, endpoint.context_fields, context))
+
+    if endpoint.name == "reservations":
+        for record in augmented:
+            _enrich_reservation_record(record)
 
     aggregated[endpoint.name].extend(augmented)
     print(f"(info) {endpoint.name}: {len(augmented)} record(s)")
