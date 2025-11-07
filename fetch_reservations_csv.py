@@ -29,7 +29,6 @@ DATA_DIR = ROOT / "data"
 TIMEZONE = ZoneInfo("Asia/Tokyo") if ZoneInfo is not None else None
 REQUEST_TIMEOUT = 30
 
-
 @dataclass
 class EndpointConfig:
     name: str
@@ -373,6 +372,10 @@ def _enrich_reservation_record(
     for key in required:
         record.setdefault(key, "")
 
+
+def _resolve_required_fields(endpoint: EndpointConfig) -> Sequence[str]:
+    return tuple(endpoint.ensure_columns)
+
 def _augment_record(
     record: MutableMapping[str, Any],
     context_fields: Sequence[str],
@@ -471,7 +474,7 @@ def _write_csv(
         columns = []
 
     extra_columns = set(endpoint.context_fields)
-    extra_columns.update(endpoint.ensure_columns)
+    extra_columns.update(_resolve_required_fields(endpoint))
     if columns:
         column_set = set(columns)
     else:
@@ -580,13 +583,10 @@ def _process_endpoint(
     augmented: list[MutableMapping[str, Any]] = []
     for record in records:
         enriched = _augment_record(record, endpoint.context_fields, context)
-        if endpoint.ensure_columns:
-            _enrich_reservation_record(enriched, endpoint.ensure_columns)
+        required_fields = _resolve_required_fields(endpoint)
+        if required_fields:
+            _enrich_reservation_record(enriched, required_fields)
         augmented.append(enriched)
-
-    if endpoint.name == "reservations":
-        for record in augmented:
-            _enrich_reservation_record(record)
 
     aggregated[endpoint.name].extend(augmented)
     print(f"(info) {endpoint.name}: {len(augmented)} record(s)")
