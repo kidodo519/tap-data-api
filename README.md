@@ -47,6 +47,8 @@ python fetch_reservations_csv.py
 - `--date-range-file`: `from`/`to` を保持した JSON ファイルのパスを指定します。省略時は
   `config/reservation_date_range.json` を読み込みます。
 - `--config`: デフォルト以外のエンドポイント設定ファイルを使用する場合に指定します。
+- 対話的に実行するときは `--date` を省略して Enter キーを押すと、プロンプトが表示され手動で
+  予約日を入力できます (未入力の場合は昨日の日付が利用されます)。
 
 予約エンドポイントで追加の列を必ず出力したい場合は、`config/reservations_endpoints.json` の
 `ensure_columns` に列名を追記してください。

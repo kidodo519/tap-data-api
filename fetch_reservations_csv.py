@@ -584,6 +584,10 @@ def _process_endpoint(
             _enrich_reservation_record(enriched, endpoint.ensure_columns)
         augmented.append(enriched)
 
+    if endpoint.name == "reservations":
+        for record in augmented:
+            _enrich_reservation_record(record)
+
     aggregated[endpoint.name].extend(augmented)
     print(f"(info) {endpoint.name}: {len(augmented)} record(s)")
 
