@@ -48,11 +48,15 @@ python fetch_reservations_csv.py
 - `--date-range-file`: `from`/`to` を保持した JSON ファイルのパスを指定します。省略時は
   `config/reservation_date_range.json` を読み込みます。
 - `--config`: デフォルト以外のエンドポイント設定ファイルを使用する場合に指定します。
+- `--swagger`: `API/swagger.json` 以外の OpenAPI/Swagger JSON を参照したい場合に指定します。
 - 対話的に実行するときは `--date` を省略して Enter キーを押すと、プロンプトが表示され手動で
   予約日を入力できます (未入力の場合は昨日の日付が利用されます)。
 
-予約エンドポイントで追加の列を必ず出力したい場合は、`config/reservations_endpoints.json` の
-`ensure_columns` に列名を追記してください。
+エンドポイントごとの全カラムを出力するため、デフォルトで `API/swagger.json` から取得したレスポンス
+スキーマを走査し、200 応答に含まれるプロパティ名を `ensure_columns` に自動設定します。Swagger を
+変更した場合は、スクリプト実行時に `--swagger` で更新後のファイルを指すようにしてください。
+特定の列を必ず含めたい場合は `config/reservations_endpoints.json` の該当エントリに `ensure_columns`
+を明示的に書き換えれば上書きできます。
 
 スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` が
 出力されます。JSON は保存されません。レスポンスが空の場合でも、設定した

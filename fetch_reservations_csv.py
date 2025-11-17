@@ -27,6 +27,7 @@ ENV_PATH = ROOT / ".env"
 CONFIG_PATH = ROOT / "config" / "reservations_endpoints.json"
 DATE_RANGE_PATH = ROOT / "config" / "reservation_date_range.json"
 DATA_DIR = ROOT / "data"
+SWAGGER_PATH = ROOT / "API" / "swagger.json"
 TIMEZONE = ZoneInfo("Asia/Tokyo") if ZoneInfo is not None else None
 REQUEST_TIMEOUT = 30
 
@@ -38,6 +39,7 @@ class EndpointConfig:
     params: Mapping[str, str] = field(default_factory=dict)
     context_fields: Sequence[str] = field(default_factory=list)
     ensure_columns: Sequence[str] = field(default_factory=list)
+    inherit_ensure_columns: bool = False
     children: Sequence["EndpointConfig"] = field(default_factory=list)
 
     @classmethod
@@ -66,6 +68,10 @@ class EndpointConfig:
             raise ValueError(f"ensure_columns for '{name}' must be an array of strings")
         ensure_columns = [str(column) for column in ensure_columns]
 
+        inherit_ensure_columns = payload.get("inherit_ensure_columns", False)
+        if not isinstance(inherit_ensure_columns, bool):
+            raise ValueError(f"inherit_ensure_columns for '{name}' must be a boolean")
+
         children_payload = payload.get("children", [])
         if not isinstance(children_payload, Sequence):
             raise ValueError(f"children for '{name}' must be an array")
@@ -78,6 +84,7 @@ class EndpointConfig:
             params=params,  # type: ignore[arg-type]
             context_fields=context_fields,
             ensure_columns=ensure_columns,
+            inherit_ensure_columns=inherit_ensure_columns,
             children=children,
         )
 
@@ -108,6 +115,114 @@ def _load_config(path: Path) -> list[EndpointConfig]:
         print(f"設定ファイルの形式が不正です: {exc}", file=sys.stderr)
         sys.exit(1)
     return configs
+
+
+def _apply_inherited_ensure_columns(
+    endpoints: Sequence[EndpointConfig],
+    parent_required: Sequence[str] | None = None,
+) -> None:
+    parent_required = tuple(parent_required or [])
+    for endpoint in endpoints:
+        effective_required: Sequence[str]
+        if endpoint.inherit_ensure_columns:
+            endpoint.ensure_columns = tuple(parent_required)
+            effective_required = endpoint.ensure_columns
+        else:
+            effective_required = endpoint.ensure_columns or parent_required
+        _apply_inherited_ensure_columns(endpoint.children, effective_required)
+
+
+def _load_swagger(path: Path) -> Mapping[str, Any] | None:
+    if not path.exists():
+        print(f"(warn) Swagger ファイルが見つかりません: {path}")
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"(warn) Swagger ファイルの JSON 解析に失敗しました: {exc}")
+    return None
+
+
+def _resolve_ref(spec: Mapping[str, Any], ref: str) -> Mapping[str, Any]:
+    _, _, path = ref.partition("#/")
+    target: Mapping[str, Any] = spec
+    for segment in path.split("/"):
+        target = target[segment]
+    if "$ref" in target:
+        return _resolve_ref(spec, target["$ref"])
+    return target
+
+
+def _collect_schema_properties(
+    spec: Mapping[str, Any], schema: Mapping[str, Any], prefix: str = ""
+) -> set[str]:
+    resolved = _resolve_ref(spec, schema["$ref"]) if "$ref" in schema else schema
+    properties: set[str] = set()
+
+    if "allOf" in resolved:
+        for part in resolved["allOf"]:
+            properties.update(_collect_schema_properties(spec, part, prefix))
+        return properties
+
+    schema_type = resolved.get("type")
+    if schema_type == "object":
+        for key, value in resolved.get("properties", {}).items():
+            next_prefix = f"{prefix}.{key}" if prefix else str(key)
+            properties.add(next_prefix)
+            properties.update(_collect_schema_properties(spec, value, next_prefix))
+    elif schema_type == "array":
+        properties.update(_collect_schema_properties(spec, resolved.get("items", {}), prefix))
+    return properties
+
+
+def _schema_columns_for_endpoint(
+    spec: Mapping[str, Any], endpoint: EndpointConfig, *, base_prefix: str = "/hotels/{hotel_id}/"
+) -> Sequence[str] | None:
+    relative_path = endpoint.path.lstrip("/")
+    swagger_path = f"{base_prefix}{relative_path}"
+
+    path_item = spec.get("paths", {}).get(swagger_path)
+    if not isinstance(path_item, Mapping):
+        return None
+
+    operation = path_item.get(endpoint.method.lower())
+    if not isinstance(operation, Mapping):
+        return None
+
+    responses = operation.get("responses", {})
+    ok_response = responses.get("200")
+    if not isinstance(ok_response, Mapping):
+        return None
+
+    content = ok_response.get("content", {})
+    json_schema = None
+    if isinstance(content, Mapping):
+        app_json = content.get("application/json")
+        if isinstance(app_json, Mapping):
+            json_schema = app_json.get("schema")
+
+    if not isinstance(json_schema, Mapping):
+        return None
+
+    properties = _collect_schema_properties(spec, json_schema)
+    return tuple(sorted(properties)) if properties else None
+
+
+def _apply_schema_columns(
+    endpoints: Sequence[EndpointConfig],
+    spec: Mapping[str, Any],
+    *,
+    parent_required: Sequence[str] | None = None,
+) -> None:
+    parent_required = tuple(parent_required or [])
+    for endpoint in endpoints:
+        columns = _schema_columns_for_endpoint(spec, endpoint)
+        if columns:
+            endpoint.ensure_columns = columns
+            effective_required = endpoint.ensure_columns
+        else:
+            effective_required = endpoint.ensure_columns or parent_required
+        _apply_schema_columns(endpoint.children, spec, parent_required=effective_required)
 
 
 def _default_reservation_range() -> tuple[date, date]:
@@ -652,10 +767,20 @@ def main(argv: Sequence[str] | None = None) -> None:
             " (デフォルト: %(default)s)。--date または --from-date/--to-date が未指定の場合に使用"
         ),
     )
+    parser.add_argument(
+        "--swagger",
+        default=str(SWAGGER_PATH),
+        help="全カラムを取得するために参照する Swagger (OpenAPI) JSON のパス (デフォルト: %(default)s)",
+    )
     args = parser.parse_args(argv)
 
     _load_env()
     configs = _load_config(Path(args.config))
+    swagger_spec = _load_swagger(Path(args.swagger))
+    if swagger_spec:
+        _apply_schema_columns(configs, swagger_spec)
+    else:
+        _apply_inherited_ensure_columns(configs)
 
     try:
         endpoint_index = _gather_endpoints(configs)
