@@ -32,6 +32,7 @@
           "reservation_date_from",
           "reservation_date_to"
         ],
+        "inherit_ensure_columns": true,
         "children": [
           {
             "name": "reservation_room_check_in",
@@ -52,7 +53,8 @@
           "reservation_id",
           "reservation_date_from",
           "reservation_date_to"
-        ]
+        ],
+        "inherit_ensure_columns": true
       },
       {
         "name": "reservation_slip_reservations",
@@ -61,7 +63,8 @@
           "reservation_id",
           "reservation_date_from",
           "reservation_date_to"
-        ]
+        ],
+        "inherit_ensure_columns": true
       },
       {
         "name": "reservation_revenue",
@@ -70,7 +73,8 @@
           "reservation_id",
           "reservation_date_from",
           "reservation_date_to"
-        ]
+        ],
+        "inherit_ensure_columns": true
       }
     ]
   }

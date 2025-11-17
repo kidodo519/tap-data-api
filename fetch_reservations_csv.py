@@ -38,6 +38,7 @@ class EndpointConfig:
     params: Mapping[str, str] = field(default_factory=dict)
     context_fields: Sequence[str] = field(default_factory=list)
     ensure_columns: Sequence[str] = field(default_factory=list)
+    inherit_ensure_columns: bool = False
     children: Sequence["EndpointConfig"] = field(default_factory=list)
 
     @classmethod
@@ -66,6 +67,10 @@ class EndpointConfig:
             raise ValueError(f"ensure_columns for '{name}' must be an array of strings")
         ensure_columns = [str(column) for column in ensure_columns]
 
+        inherit_ensure_columns = payload.get("inherit_ensure_columns", False)
+        if not isinstance(inherit_ensure_columns, bool):
+            raise ValueError(f"inherit_ensure_columns for '{name}' must be a boolean")
+
         children_payload = payload.get("children", [])
         if not isinstance(children_payload, Sequence):
             raise ValueError(f"children for '{name}' must be an array")
@@ -78,6 +83,7 @@ class EndpointConfig:
             params=params,  # type: ignore[arg-type]
             context_fields=context_fields,
             ensure_columns=ensure_columns,
+            inherit_ensure_columns=inherit_ensure_columns,
             children=children,
         )
 
@@ -108,6 +114,21 @@ def _load_config(path: Path) -> list[EndpointConfig]:
         print(f"設定ファイルの形式が不正です: {exc}", file=sys.stderr)
         sys.exit(1)
     return configs
+
+
+def _apply_inherited_ensure_columns(
+    endpoints: Sequence[EndpointConfig],
+    parent_required: Sequence[str] | None = None,
+) -> None:
+    parent_required = tuple(parent_required or [])
+    for endpoint in endpoints:
+        effective_required: Sequence[str]
+        if endpoint.inherit_ensure_columns:
+            endpoint.ensure_columns = tuple(parent_required)
+            effective_required = endpoint.ensure_columns
+        else:
+            effective_required = endpoint.ensure_columns or parent_required
+        _apply_inherited_ensure_columns(endpoint.children, effective_required)
 
 
 def _default_reservation_range() -> tuple[date, date]:
@@ -656,6 +677,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     _load_env()
     configs = _load_config(Path(args.config))
+    _apply_inherited_ensure_columns(configs)
 
     try:
         endpoint_index = _gather_endpoints(configs)
