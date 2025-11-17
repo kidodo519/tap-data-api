@@ -52,7 +52,11 @@ python fetch_reservations_csv.py
   予約日を入力できます (未入力の場合は昨日の日付が利用されます)。
 
 予約エンドポイントで追加の列を必ず出力したい場合は、`config/reservations_endpoints.json` の
-`ensure_columns` に列名を追記してください。
+`ensure_columns` に列名を追記してください。子エンドポイント側で個別に列を列挙したくない場合は、
+`inherit_ensure_columns: true` を指定すると親エンドポイントの `ensure_columns` を引き継ぎます。
+`reservations` の子エンドポイント (`rooms` や `meal-reservations` など) も、この継承フラグを使って
+トップレベルの予約エンドポイントと同じ列セットを利用しており、外部の API リファレンスなど別資料
+には依存していません。
 
 スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` が
 出力されます。JSON は保存されません。レスポンスが空の場合でも、設定した
