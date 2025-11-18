@@ -175,6 +175,26 @@ def _collect_schema_properties(
     return properties
 
 
+def _simplify_columns(columns: Sequence[str]) -> list[str]:
+    simplified: list[str] = []
+    seen: set[str] = set()
+    counters: dict[str, int] = defaultdict(int)
+
+    for column in columns:
+        base = _simplify_column_name(column)
+        counters[base] += 1
+        suffix = counters[base]
+        name = base if suffix == 1 else f"{base}_{suffix}"
+        while name in seen:
+            suffix += 1
+            counters[base] = suffix
+            name = f"{base}_{suffix}"
+        seen.add(name)
+        simplified.append(name)
+
+    return simplified
+
+
 def _schema_columns_for_endpoint(
     spec: Mapping[str, Any], endpoint: EndpointConfig, *, base_prefix: str = "/hotels/{hotel_id}/"
 ) -> Sequence[str] | None:
@@ -205,7 +225,10 @@ def _schema_columns_for_endpoint(
         return None
 
     properties = _collect_schema_properties(spec, json_schema)
-    return tuple(sorted(properties)) if properties else None
+    if not properties:
+        return None
+    simplified = _simplify_columns(sorted(properties))
+    return tuple(simplified)
 
 
 def _apply_schema_columns(
