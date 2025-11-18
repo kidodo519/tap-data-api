@@ -8,6 +8,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+import re
 from collections.abc import Mapping, MutableMapping, Sequence
 from typing import List
 
@@ -138,7 +139,7 @@ def _ensure_records(payload: object) -> List[MutableMapping[str, object]]:
 def _flatten_value(value: object, prefix: str, flattened: MutableMapping[str, str]) -> None:
     if isinstance(value, Mapping):
         if not value:
-            target = prefix or "value"
+            target = _next_available_column(_simplify_column_name(prefix), flattened)
             flattened[target] = ""
         else:
             for key, nested in value.items():
@@ -148,7 +149,7 @@ def _flatten_value(value: object, prefix: str, flattened: MutableMapping[str, st
 
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         if not value:
-            target = prefix or "value"
+            target = _next_available_column(_simplify_column_name(prefix), flattened)
             flattened[target] = ""
         else:
             for index, item in enumerate(value):
@@ -157,8 +158,27 @@ def _flatten_value(value: object, prefix: str, flattened: MutableMapping[str, st
                 _flatten_value(item, next_prefix, flattened)
         return
 
-    target = prefix or "value"
+    target = _next_available_column(_simplify_column_name(prefix), flattened)
     flattened[target] = _serialise_value(value)
+
+
+def _simplify_column_name(prefix: str) -> str:
+    if not prefix:
+        return "value"
+    tail = prefix.split(".")[-1]
+    simplified = re.sub(r"\[\d+\]", "", tail)
+    return simplified or "value"
+
+
+def _next_available_column(name: str, existing: MutableMapping[str, str]) -> str:
+    if name not in existing:
+        return name
+    suffix = 2
+    while True:
+        candidate = f"{name}_{suffix}"
+        if candidate not in existing:
+            return candidate
+        suffix += 1
 
 
 def _normalise_records(
