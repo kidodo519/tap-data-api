@@ -11,22 +11,6 @@ TapHub の API を叩いて CSV を保存するワンショットツールです
    ```
 
 ## 使い方
-### Python から直接実行
-```bash
-python fetch_provisions_csv.py [resource]
-```
-
-引数 `resource` を省略すると `provisions` エンドポイントを利用します。`reservations`
-など別のリソースを取得したい場合は `python fetch_provisions_csv.py reservations` のように
-指定してください。単数形 (`reservation` など) で指定した場合も自動的に正しい
-エンドポイントへ置き換えます。環境変数 `TAP_RESOURCE` でも同様に切り替えられます。
-
-実行すると `data/` ディレクトリが自動で作成され、`{resource}_YYYYMMDDHHMMSS.csv`
-(`resource` は使用したエンドポイント名) が出力されます。CSV にはレスポンス内の全てのキーが
-ドット (`.`) で区切られた末尾のキー名を基にしたシンプルな列名として展開されます。
-配列要素が複数ある場合は同じ列名が重複しないよう `name`, `name_2`, `name_3` のように
-連番が付与されます。ネストされたオブジェクトや配列の内容も簡潔なヘッダーで確認できます。
-
 ### 予約関連 API を日次で収集する
 予約一覧と、その予約 ID を使う関連エンドポイントをまとめて取得したい場合は
 `fetch_reservations_csv.py` を使用します。設定ファイル `config/reservations_endpoints.json`
