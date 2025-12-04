@@ -353,7 +353,17 @@ def _coerce_records(payload: Any) -> list[MutableMapping[str, Any]]:
                 candidates = value
                 break
         else:
-            candidates = [payload]
+            body = payload.get("body")
+            if isinstance(body, Mapping):
+                nested = _coerce_records(body)
+                if nested:
+                    return nested
+            for value in payload.values():
+                if isinstance(value, list):
+                    candidates = value
+                    break
+            else:
+                candidates = [payload]
     else:
         return []
 
