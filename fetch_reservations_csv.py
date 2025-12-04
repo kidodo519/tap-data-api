@@ -344,28 +344,26 @@ def _is_scalar(value: Any) -> bool:
 
 
 def _coerce_records(payload: Any) -> list[MutableMapping[str, Any]]:
-    if isinstance(payload, list):
-        candidates = payload
-    elif isinstance(payload, Mapping):
-        for key in ("data", "items", "results", "rows"):
-            value = payload.get(key)  # type: ignore[index]
-            if isinstance(value, list):
-                candidates = value
-                break
-        else:
-            body = payload.get("body")
-            if isinstance(body, Mapping):
-                nested = _coerce_records(body)
-                if nested:
+    def _find_candidate_list(obj: Any) -> list[Any] | None:
+        if isinstance(obj, list):
+            return obj
+        if isinstance(obj, Mapping):
+            for key in ("data", "items", "results", "rows", "body"):
+                nested = _find_candidate_list(obj.get(key))  # type: ignore[index]
+                if nested is not None:
                     return nested
-            for value in payload.values():
-                if isinstance(value, list):
-                    candidates = value
-                    break
-            else:
-                candidates = [payload]
-    else:
-        return []
+            for value in obj.values():
+                nested = _find_candidate_list(value)
+                if nested is not None:
+                    return nested
+        return None
+
+    candidates = _find_candidate_list(payload)
+    if candidates is None:
+        if isinstance(payload, Mapping):
+            candidates = [payload]
+        else:
+            return []
 
     records: list[MutableMapping[str, Any]] = []
     for index, item in enumerate(candidates):
