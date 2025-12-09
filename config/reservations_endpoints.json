@@ -11,8 +11,10 @@
       "reservation_date_to"
     ],
     "ensure_columns": [
+      "reservation_number",
       "check_in_date",
       "created_at",
+      "created",
       "status",
       "last_modified",
       "person_count",
