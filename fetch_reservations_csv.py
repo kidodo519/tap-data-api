@@ -240,7 +240,7 @@ def _apply_schema_columns(
     parent_required = tuple(parent_required or [])
     for endpoint in endpoints:
         columns = _schema_columns_for_endpoint(spec, endpoint)
-        if columns:
+        if columns and not endpoint.ensure_columns:
             endpoint.ensure_columns = columns
             effective_required = endpoint.ensure_columns
         else:
