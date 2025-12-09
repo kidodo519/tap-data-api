@@ -428,6 +428,15 @@ def _enrich_reservation_record(
 ) -> None:
     required = set(required_fields)
 
+    if "reservation_id" in required and "reservation_id" not in record:
+        reservation_id = (
+            record.get("reservation_id")
+            or record.get("reservation_number")
+            or record.get("id")
+        )
+        if reservation_id:
+            record["reservation_id"] = reservation_id
+
     if "check_in_date" in required and "check_in_date" not in record:
         stay_period = record.get("stay_period")
         if isinstance(stay_period, Mapping):
@@ -523,6 +532,27 @@ def _enrich_reservation_record(
 def _resolve_required_fields(endpoint: EndpointConfig) -> Sequence[str]:
     return tuple(endpoint.ensure_columns)
 
+
+def _resolve_column_order(
+    *,
+    endpoint: EndpointConfig,
+    normalised_records: Sequence[Mapping[str, str]],
+) -> list[str]:
+    columns: list[str]
+    if endpoint.ensure_columns:
+        columns = list(dict.fromkeys(endpoint.ensure_columns))
+    else:
+        columns = _collect_columns(normalised_records)
+
+    extras = list(dict.fromkeys(endpoint.context_fields))
+    for extra in extras:
+        if extra not in columns:
+            columns.append(extra)
+
+    if not columns:
+        columns = ["value"]
+    return columns
+
 def _augment_record(
     record: MutableMapping[str, Any],
     context_fields: Sequence[str],
@@ -584,10 +614,9 @@ def _flatten_value(value: Any, prefix: str, flattened: MutableMapping[str, str])
             target = _next_available_column(_simplify_column_name(prefix), flattened)
             flattened[target] = ""
         else:
-            for index, item in enumerate(value):
-                base = prefix or "value"
-                next_prefix = f"{base}[{index}]"
-                _flatten_value(item, next_prefix, flattened)
+            first_item = next(iter(value))
+            base = prefix or "value"
+            _flatten_value(first_item, base, flattened)
         return
     target = _next_available_column(_simplify_column_name(prefix), flattened)
     flattened[target] = _serialise_value(value)
@@ -634,21 +663,9 @@ def _write_csv(
 
     if records:
         normalised = _normalise_records(records)
-        columns = _collect_columns(normalised)
     else:
         normalised = []
-        columns = []
-
-    extra_columns = set(endpoint.context_fields)
-    extra_columns.update(_resolve_required_fields(endpoint))
-    if columns:
-        column_set = set(columns)
-    else:
-        column_set = set()
-    column_set.update(extra_columns)
-    if not column_set:
-        column_set = {"value"}
-    columns = sorted(column_set)
+    columns = _resolve_column_order(endpoint=endpoint, normalised_records=normalised)
 
     with csv_path.open("w", encoding="utf-8-sig", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=columns, extrasaction="ignore")
