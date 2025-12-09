@@ -658,6 +658,20 @@ def _write_csv(
     print(f"Saved CSV  : {csv_path} ({csv_path.stat().st_size} bytes)")
 
 
+def _write_json(
+    endpoint: EndpointConfig,
+    records: Sequence[Mapping[str, Any]],
+    timestamp: str,
+) -> None:
+    name = endpoint.name
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = DATA_DIR / f"{timestamp}_{name}.json"
+
+    with json_path.open("w", encoding="utf-8") as fh:
+        json.dump(records, fh, ensure_ascii=False, indent=2)
+    print(f"Saved JSON : {json_path} ({json_path.stat().st_size} bytes)")
+
+
 def _request_json(
     session: requests.Session,
     method: str,
@@ -842,6 +856,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         file_path=Path(args.date_range_file),
     )
 
+    print(
+        "(info) reservation_date_from/to:",
+        f"{reservation_date_from} -> {reservation_date_to}",
+    )
+
     base_context: dict[str, Any] = {
         "hotel_id": hotel_code,
         "reservation_date_from": reservation_date_from,
@@ -870,6 +889,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     for name, endpoint in endpoint_index.items():
         records = aggregated.get(name, [])
         _write_csv(endpoint, records, timestamp)
+        _write_json(endpoint, records, timestamp)
 
 
 if __name__ == "__main__":

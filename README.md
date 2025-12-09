@@ -42,9 +42,18 @@ python fetch_reservations_csv.py
 特定の列を必ず含めたい場合は `config/reservations_endpoints.json` の該当エントリに `ensure_columns`
 を明示的に書き換えれば上書きできます。
 
-スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` が
-出力されます。JSON は保存されません。レスポンスが空の場合でも、設定した
-`context_fields` に基づいたヘッダーのみの CSV が生成されます。
+スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` と
+`YYYYMMDDHHMMSS_{endpoint_name}.json` が出力されます。JSON には API から取得したレコード
+（正規化前の構造）をそのまま保存するので、CSV 化での欠落がないかを検証するのにも使えます。
+レスポンスが空の場合でも、設定した `context_fields` に基づいたヘッダーのみの CSV が生成
+され、JSON は空配列になります。
+
+### 認証について
+`API/swagger.json` では `securitySchemes` として `AccessToken` が定義されており、
+ヘッダー `X-API-Key` を使う API キー認証のみが記載されています。ベーシック認証や
+「リバプロID/PW」のような別認証は Swagger には登場しません。そのため、このリポジトリに
+含まれるスクリプトでも環境変数 `TAP_API_KEY` を読み込み、`X-API-Key` ヘッダーを
+付与して呼び出す実装になっています。
 
 ### シェルスクリプト / PowerShell を利用
 - macOS / Linux / WSL:
@@ -67,3 +76,10 @@ python fetch_reservations_csv.py
 - `.env` が正しく配置されているか確認してください。
 - プロキシ環境では `requests` に対応する環境変数 (`HTTP_PROXY` など) を設定してください。
 - CSV には UTF-8 (BOM 付き) で書き出されるため、Excel でも文字化けせずに開けます。
+- `reservations` が 0 件になるときは、次を確認してください。
+  - 予約日が意図せずずれていないか: スクリプト起動時に `(info) reservation_date_from/to: 2025-04-01 -> 2025-04-01` のように解決した日付が表示されます。ここが期待と違う場合は `--date` または `config/reservation_date_range.json` を修正し、`from/to` 両方が埋まっているか確認します。
+  - API 側にデータが存在するか: 管理画面や DB で、指定した期間に予約があるかを確認します。期間中に予約がない場合は 200 でも 0 件が返ります。
+  - 環境変数が正しいか: `.env` の `API_BASE` と `HOTEL_CODE` が稼働環境の値か確認してください。誤ったホテルコードを指定すると、認証は通っても予約一覧が空になります。
+  - クエリを実際に投げているか: 実行ログに `Request: GET .../reservations params={'from_reservation_date': '...', 'to_reservation_date': '...'}` が出るので、想定したパラメーターで呼び出せているか確認します。別ツールで同じクエリを投げ、件数が一致するかを比較すると切り分けやすくなります。レスポンスごとにステータスコードと保存した CSV/JSON のパスも表示されるので、どのエンドポイントがどのくらいの件数を返したかを追跡できます。
+  - `API/generated_service-set-pms-reservation_README-API.md` の定義では `/hotels/{hotel_id}/reservations` に `from_reservation_date` と `to_reservation_date` が必須で、`control_status` は `Reserve`/`Cancel`/`Stay`/`PartialStay`/`NoShow` のみ受け付けられます。意図しないフィルタを付けていないかを確認してください。
+  - 同ドキュメントにはページング用の `next_cursor` が返る場合があると記載されています。ダッシュボードなど他ツールでは件数が多いのに CSV が少ない場合、`cursor` パラメーターを使った追跡取得が必要かを検討してください。
