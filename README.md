@@ -42,11 +42,9 @@ python fetch_reservations_csv.py
 特定の列を必ず含めたい場合は `config/reservations_endpoints.json` の該当エントリに `ensure_columns`
 を明示的に書き換えれば上書きできます。
 
-スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` と
-`YYYYMMDDHHMMSS_{endpoint_name}.json` が出力されます。JSON には API から取得したレコード
-（正規化前の構造）をそのまま保存するので、CSV 化での欠落がないかを検証するのにも使えます。
-レスポンスが空の場合でも、設定した `context_fields` に基づいたヘッダーのみの CSV が生成
-され、JSON は空配列になります。
+スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` が出力
+されます。レスポンスが空の場合でも、設定した `context_fields` に基づいたヘッダーのみの CSV
+が生成されます。
 
 ### 認証について
 `API/swagger.json` では `securitySchemes` として `AccessToken` が定義されており、
