@@ -239,12 +239,17 @@ def _apply_schema_columns(
 ) -> None:
     parent_required = tuple(parent_required or [])
     for endpoint in endpoints:
-        columns = _schema_columns_for_endpoint(spec, endpoint)
-        if columns and not endpoint.ensure_columns:
-            endpoint.ensure_columns = columns
+        schema_columns = _schema_columns_for_endpoint(spec, endpoint)
+        if endpoint.ensure_columns:
+            effective_required = tuple(endpoint.ensure_columns)
+        elif endpoint.inherit_ensure_columns and parent_required:
+            endpoint.ensure_columns = tuple(parent_required)
+            effective_required = endpoint.ensure_columns
+        elif schema_columns:
+            endpoint.ensure_columns = schema_columns
             effective_required = endpoint.ensure_columns
         else:
-            effective_required = endpoint.ensure_columns or parent_required
+            effective_required = parent_required
         _apply_schema_columns(endpoint.children, spec, parent_required=effective_required)
 
 
@@ -675,20 +680,6 @@ def _write_csv(
     print(f"Saved CSV  : {csv_path} ({csv_path.stat().st_size} bytes)")
 
 
-def _write_json(
-    endpoint: EndpointConfig,
-    records: Sequence[Mapping[str, Any]],
-    timestamp: str,
-) -> None:
-    name = endpoint.name
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    json_path = DATA_DIR / f"{timestamp}_{name}.json"
-
-    with json_path.open("w", encoding="utf-8") as fh:
-        json.dump(records, fh, ensure_ascii=False, indent=2)
-    print(f"Saved JSON : {json_path} ({json_path.stat().st_size} bytes)")
-
-
 def _request_json(
     session: requests.Session,
     method: str,
@@ -786,7 +777,6 @@ def _process_endpoint(
         augmented.append(enriched)
 
     aggregated[endpoint.name].extend(augmented)
-    print(f"(info) {endpoint.name}: {len(augmented)} record(s)")
 
     for record in augmented:
         child_context = _build_child_context(context, record, endpoint.context_fields)
@@ -902,11 +892,15 @@ def main(argv: Sequence[str] | None = None) -> None:
             aggregated=aggregated,
         )
 
+    print("(info) collected records:")
+    for name in endpoint_index:
+        count = len(aggregated.get(name, []))
+        print(f"(info)  - {name}: {count} record(s)")
+
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     for name, endpoint in endpoint_index.items():
         records = aggregated.get(name, [])
         _write_csv(endpoint, records, timestamp)
-        _write_json(endpoint, records, timestamp)
 
 
 if __name__ == "__main__":
