@@ -30,6 +30,20 @@ DATA_DIR = ROOT / "data"
 SWAGGER_PATH = ROOT / "API" / "swagger.json"
 TIMEZONE = ZoneInfo("Asia/Tokyo") if ZoneInfo is not None else None
 REQUEST_TIMEOUT = 30
+GROUPED_EXPORTS: dict[str, tuple[str, ...]] = {
+    "reservation": (
+        "reservations",
+        "reservation_meal_reservations",
+    ),
+    "accounting": (
+        "reservation_slip_reservations",
+        "reservation_revenue",
+    ),
+    "room": (
+        "reservation_rooms",
+        "reservation_room_check_in",
+    ),
+}
 
 @dataclass
 class EndpointConfig:
@@ -657,6 +671,52 @@ def _serialise_value(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _collect_grouped_fields(
+    endpoint_names: Sequence[str],
+    endpoint_index: Mapping[str, EndpointConfig],
+) -> tuple[list[str], list[str]]:
+    ensure_columns: list[str] = []
+    context_fields: list[str] = []
+
+    for endpoint_name in endpoint_names:
+        endpoint = endpoint_index.get(endpoint_name)
+        if not endpoint:
+            continue
+        ensure_columns.extend(endpoint.ensure_columns)
+        context_fields.extend(endpoint.context_fields)
+
+    ensure_columns = list(dict.fromkeys(ensure_columns))
+    context_fields = list(dict.fromkeys(context_fields))
+    return ensure_columns, context_fields
+
+
+def _write_grouped_csv(
+    name: str,
+    endpoint_names: Sequence[str],
+    aggregated: Mapping[str, Sequence[Mapping[str, Any]]],
+    endpoint_index: Mapping[str, EndpointConfig],
+    timestamp: str,
+) -> None:
+    grouped_records: list[Mapping[str, Any]] = []
+    for endpoint_name in endpoint_names:
+        for record in aggregated.get(endpoint_name, []):
+            merged = dict(record)
+            merged.setdefault("source_endpoint", endpoint_name)
+            grouped_records.append(merged)
+
+    ensure_columns, context_fields = _collect_grouped_fields(endpoint_names, endpoint_index)
+    if "source_endpoint" not in context_fields:
+        context_fields.append("source_endpoint")
+
+    grouped_endpoint = EndpointConfig(
+        name=name,
+        path=f"grouped:{name}",
+        ensure_columns=ensure_columns,
+        context_fields=context_fields,
+    )
+    _write_csv(grouped_endpoint, grouped_records, timestamp)
+
+
 def _write_csv(
     endpoint: EndpointConfig,
     records: Sequence[Mapping[str, Any]],
@@ -901,6 +961,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     for name, endpoint in endpoint_index.items():
         records = aggregated.get(name, [])
         _write_csv(endpoint, records, timestamp)
+
+    for grouped_name, endpoint_names in GROUPED_EXPORTS.items():
+        _write_grouped_csv(
+            grouped_name,
+            endpoint_names,
+            aggregated,
+            endpoint_index,
+            timestamp,
+        )
 
 
 if __name__ == "__main__":

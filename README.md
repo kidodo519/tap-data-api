@@ -45,6 +45,11 @@ python fetch_reservations_csv.py
 スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` が出力
 されます。レスポンスが空の場合でも、設定した `context_fields` に基づいたヘッダーのみの CSV
 が生成されます。
+加えて、予約に関する複数のエンドポイントをまとめた集約 CSV も同じタイムスタンプで
+`YYYYMMDDHHMMSS_{reservation,accounting,room}.csv` として出力されます。`reservation` は
+予約の基本情報 (`reservations` / `reservation_meal_reservations`)、`accounting` は会計系
+(`reservation_slip_reservations` / `reservation_revenue`)、`room` は部屋関連
+(`reservation_rooms` / `reservation_room_check_in`) を統合したものです。
 
 ### 認証について
 `API/swagger.json` では `securitySchemes` として `AccessToken` が定義されており、
