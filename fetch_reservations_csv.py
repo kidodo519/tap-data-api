@@ -619,18 +619,26 @@ def _summarise_price(record: Mapping[str, Any]) -> int | None:
     return total_price if found else None
 
 
+def _extract_reservation_id(record: Mapping[str, Any]) -> Any:
+    """Return the reservation id, tolerating stray whitespace in keys."""
+
+    for key, value in record.items():
+        if str(key).strip().lower() == "id" and value:
+            return value
+
+    return record.get("reservation_id") or record.get("reservation_number")
+
+
 def _enrich_reservation_record(
     record: MutableMapping[str, Any],
     required_fields: Sequence[str],
 ) -> None:
     required = set(required_fields)
 
-    if "reservation_id" in required:
-        reservation_id = record.get("id") or record.get("reservation_id")
-        if not reservation_id:
-            reservation_id = record.get("reservation_number")
-        if reservation_id:
-            record["reservation_id"] = reservation_id
+    reservation_id = _extract_reservation_id(record)
+    if reservation_id:
+        record["id"] = reservation_id
+        record["reservation_id"] = reservation_id
 
     if "check_in_date" in required and "check_in_date" not in record:
         stay_period = record.get("stay_period")
