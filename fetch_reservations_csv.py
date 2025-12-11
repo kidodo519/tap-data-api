@@ -85,12 +85,14 @@ ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
         "reservation_number",
         "date",
         "room_number",
+        "room_type_code",
         "request_url",
     ),
     "reservation_room_check_in": (
         "reservation_number",
         "date",
         "room_number",
+        "room_type_code",
         "request_url",
     ),
     "reservation_slip_reservations": (
@@ -100,6 +102,10 @@ ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
         "total_price",
         "tax_include",
         "quantity",
+        "number_of_use",
+        "sales_amount",
+        "meal_amount",
+        "total",
         "request_url",
     ),
     "reservation_revenue": (
@@ -109,6 +115,10 @@ ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
         "total_price",
         "tax_include",
         "quantity",
+        "number_of_use",
+        "sales_amount",
+        "meal_amount",
+        "total",
         "request_url",
     ),
 }
@@ -793,6 +803,13 @@ def _enrich_room_record(record: MutableMapping[str, Any], required_fields: Seque
         if room_number:
             record["room_number"] = room_number
 
+    if "room_type_code" in required_fields and "room_type_code" not in record:
+        room_type = record.get("room_type")
+        if isinstance(room_type, Mapping):
+            code = room_type.get("code")
+            if code:
+                record["room_type_code"] = code
+
     for key in required_fields:
         record.setdefault(key, "")
 
@@ -831,6 +848,30 @@ def _enrich_sales_record(record: MutableMapping[str, Any], required_fields: Sequ
         quantity = record.get("quantity") or record.get("count")
         if quantity is not None:
             record["quantity"] = quantity
+
+    if "number_of_use" in required_fields and "number_of_use" not in record:
+        number_of_use = record.get("number_of_use") or record.get("number_of_uses")
+        if number_of_use is not None:
+            record["number_of_use"] = number_of_use
+
+    if "sales_amount" in required_fields and "sales_amount" not in record:
+        sales_amount = record.get("sales_amount") or record.get("sales") or record.get("amount")
+        if sales_amount is not None:
+            record["sales_amount"] = sales_amount
+
+    if "meal_amount" in required_fields and "meal_amount" not in record:
+        meal_amount = record.get("meal_amount") or record.get("meal")
+        if meal_amount is not None:
+            record["meal_amount"] = meal_amount
+
+    if "total" in required_fields and "total" not in record:
+        total = record.get("total")
+        if total is None:
+            price = record.get("total_price") or record.get("price") or record.get("amount")
+            if price is not None:
+                total = price
+        if total is not None:
+            record["total"] = total
 
     for key in required_fields:
         record.setdefault(key, "")
@@ -903,6 +944,8 @@ def _build_child_context(
     for key, value in record.items():
         if _is_scalar(value):
             child_context[key] = value
+    if "room_reservation_id" not in child_context and "id" in child_context:
+        child_context["room_reservation_id"] = child_context["id"]
     for key in additional_fields:
         if key in parent_context:
             child_context[key] = parent_context[key]
