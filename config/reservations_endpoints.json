@@ -32,6 +32,7 @@
         "path": "reservations/{reservation_id}/rooms",
         "context_fields": [
           "reservation_id",
+          "reservation_number",
           "reservation_date_from",
           "reservation_date_to"
         ],
@@ -43,6 +44,7 @@
             "context_fields": [
               "reservation_id",
               "room_reservation_id",
+              "reservation_number",
               "reservation_date_from",
               "reservation_date_to"
             ]
@@ -64,6 +66,7 @@
         "path": "reservations/{reservation_id}/slip-reservations",
         "context_fields": [
           "reservation_id",
+          "reservation_number",
           "reservation_date_from",
           "reservation_date_to"
         ],
@@ -74,6 +77,7 @@
         "path": "reservations/{reservation_id}/revenue",
         "context_fields": [
           "reservation_id",
+          "reservation_number",
           "reservation_date_from",
           "reservation_date_to"
         ],
