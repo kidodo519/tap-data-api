@@ -620,12 +620,10 @@ def _enrich_reservation_record(
 ) -> None:
     required = set(required_fields)
 
-    if "reservation_id" in required and "reservation_id" not in record:
-        reservation_id = (
-            record.get("reservation_id")
-            or record.get("reservation_number")
-            or record.get("id")
-        )
+    if "reservation_id" in required:
+        reservation_id = record.get("id") or record.get("reservation_id")
+        if not reservation_id:
+            reservation_id = record.get("reservation_number")
         if reservation_id:
             record["reservation_id"] = reservation_id
 
