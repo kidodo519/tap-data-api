@@ -51,6 +51,69 @@ GROUPED_EXPORTS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
+    "reservations": (
+        "reservation_number",
+        "check_in_date",
+        "check_out_date",
+        "created",
+        "created_at",
+        "status",
+        "last_modified",
+        "person_count",
+        "person_count_adult",
+        "person_count_child_a",
+        "person_count_child_b",
+        "person_count_child_c",
+        "person_count_child_d",
+        "price",
+        "reservationRoutes",
+        "sales_package_name",
+        "meal_name",
+        "marketing_area",
+        "agent_reservation_number",
+        "name",
+        "address",
+        "phone_no",
+        "gender",
+        "birthday",
+        "email",
+        "customer_number",
+    ),
+    "reservation_rooms": (
+        "reservation_number",
+        "date",
+        "room_number",
+    ),
+    "reservation_room_check_in": (
+        "reservation_number",
+        "date",
+        "room_number",
+    ),
+    "reservation_slip_reservations": (
+        "reservation_number",
+        "date",
+        "item",
+        "total_price",
+        "tax_include",
+        "quantity",
+    ),
+    "reservation_revenue": (
+        "reservation_number",
+        "date",
+        "item",
+        "total_price",
+        "tax_include",
+        "quantity",
+    ),
+}
+
+GROUPED_ALLOWED_COLUMNS: dict[str, tuple[str, ...]] = {
+    "reservations": ENSURE_COLUMNS_OVERRIDE["reservations"],
+    "rooms": ENSURE_COLUMNS_OVERRIDE["reservation_rooms"],
+    "sales": ENSURE_COLUMNS_OVERRIDE["reservation_slip_reservations"],
+}
+
 @dataclass
 class EndpointConfig:
     name: str
@@ -483,6 +546,74 @@ def _normalise_person_count(raw: Any) -> int | None:
         return None
 
 
+def _extract_person_counts(raw: Any) -> dict[str, int]:
+    if not isinstance(raw, Sequence) or isinstance(raw, (str, bytes, bytearray)):
+        total = _normalise_person_count(raw)
+        return {"person_count": total or 0}
+
+    labels = ["person_count_adult"]
+    labels.extend(
+        [f"person_count_child_{chr(ord('a') + index)}" for index in range(10)]
+    )
+
+    counts: dict[str, int] = {}
+    total = 0
+    for index, value in enumerate(raw):
+        normalised = _normalise_person_count(value)
+        if normalised is None:
+            continue
+        total += normalised
+        if index < len(labels):
+            counts[labels[index]] = normalised
+    counts["person_count"] = total
+    return counts
+
+
+def _summarise_reservation_routes(record: Mapping[str, Any]) -> str | None:
+    reservation_route = record.get("reservation_route")
+    if not isinstance(reservation_route, Mapping):
+        return None
+    routes = reservation_route.get("reservationRoutes")
+    if not isinstance(routes, Sequence):
+        return None
+    names: list[str] = []
+    for route in routes:
+        if isinstance(route, Mapping):
+            name = route.get("name") or route.get("short_name") or route.get("code")
+            if name:
+                names.append(str(name))
+    return " > ".join(names) if names else None
+
+
+def _summarise_price(record: Mapping[str, Any]) -> int | None:
+    if "price" in record and _normalise_person_count(record.get("price")) is not None:
+        price = _normalise_person_count(record.get("price"))
+        return int(price) if price is not None else None
+
+    price_changes = record.get("price_changes")
+    if not isinstance(price_changes, Sequence):
+        return None
+
+    total_price = 0
+    found = False
+    for change in price_changes:
+        if not isinstance(change, Mapping):
+            continue
+        prices = change.get("prices")
+        if not isinstance(prices, Sequence):
+            continue
+        for price_entry in prices:
+            if not isinstance(price_entry, Mapping):
+                continue
+            price_value = _normalise_person_count(price_entry.get("price"))
+            if price_value is None:
+                continue
+            found = True
+            total_price += int(price_value)
+
+    return total_price if found else None
+
+
 def _enrich_reservation_record(
     record: MutableMapping[str, Any],
     required_fields: Sequence[str],
@@ -529,13 +660,50 @@ def _enrich_reservation_record(
 
     if "person_count" in required:
         raw_person_count = record.get("person_count")
-        normalised_person_count = _normalise_person_count(raw_person_count)
-        if normalised_person_count is not None:
-            record["person_count"] = normalised_person_count
+        counts = _extract_person_counts(raw_person_count)
+        record.update(counts)
+
+    if "price" in required:
+        price = _summarise_price(record)
+        if price is not None:
+            record["price"] = price
+
+    if "reservationRoutes" in required:
+        routes = _summarise_reservation_routes(record)
+        if routes:
+            record["reservationRoutes"] = routes
+
+    pricing = record.get("pricing") if isinstance(record.get("pricing"), Mapping) else {}
+    if "sales_package_name" in required and isinstance(pricing, Mapping):
+        sales_package = pricing.get("sales_package")
+        if isinstance(sales_package, Mapping):
+            name = sales_package.get("name")
+            if name:
+                record["sales_package_name"] = name
+
+    if "meal_name" in required and isinstance(pricing, Mapping):
+        meal = pricing.get("meal")
+        if isinstance(meal, Mapping):
+            meal_name = meal.get("name")
+            if meal_name:
+                record["meal_name"] = meal_name
+
+    if "marketing_area" in required and "marketing_area" not in record:
+        marketing_area = record.get("marketing_area")
+        if marketing_area:
+            record["marketing_area"] = marketing_area
 
     contact_required = {
         field
-        for field in ("name", "address", "phone_no", "email", "customer_number")
+        for field in (
+            "name",
+            "address",
+            "phone_no",
+            "email",
+            "customer_number",
+            "gender",
+            "birthday",
+        )
         if field in required
     }
     contact_source: Mapping[str, Any] | None = None
@@ -586,12 +754,97 @@ def _enrich_reservation_record(
             if email:
                 record["email"] = email
 
+        if "gender" in required and "gender" not in record and contact_source.get("gender"):
+            record["gender"] = contact_source.get("gender")
+
+        if "birthday" in required and "birthday" not in record and contact_source.get("birthday"):
+            record["birthday"] = contact_source.get("birthday")
+
     for key in required:
         record.setdefault(key, "")
 
 
+def _enrich_room_record(record: MutableMapping[str, Any], required_fields: Sequence[str]) -> None:
+    if "reservation_number" in required_fields and "reservation_number" not in record:
+        reservation_number = record.get("reservation_number")
+        if reservation_number:
+            record["reservation_number"] = reservation_number
+
+    if "date" in required_fields and "date" not in record:
+        stay_period = record.get("stay_period")
+        if isinstance(stay_period, Mapping):
+            arrival = stay_period.get("arrival_date") or stay_period.get("check_in_date")
+            if arrival:
+                record["date"] = arrival
+
+    if "room_number" in required_fields and "room_number" not in record:
+        room_number = record.get("room_number") or record.get("room_code")
+        if not room_number and isinstance(record.get("room_type"), Mapping):
+            room_number = record["room_type"].get("code")
+        if room_number:
+            record["room_number"] = room_number
+
+    for key in required_fields:
+        record.setdefault(key, "")
+
+
+def _enrich_sales_record(record: MutableMapping[str, Any], required_fields: Sequence[str]) -> None:
+    if "reservation_number" in required_fields and "reservation_number" not in record:
+        reservation_number = record.get("reservation_number")
+        if reservation_number:
+            record["reservation_number"] = reservation_number
+
+    if "date" in required_fields and "date" not in record:
+        date_value = record.get("date") or record.get("stay_date")
+        if date_value:
+            record["date"] = date_value
+
+    if "item" in required_fields and "item" not in record:
+        item = record.get("item") or record.get("name") or record.get("description")
+        if item:
+            record["item"] = item
+
+    if "total_price" in required_fields and "total_price" not in record:
+        price = record.get("total_price") or record.get("price") or record.get("amount")
+        if price is None:
+            price = _summarise_price(record)
+        if price is not None:
+            record["total_price"] = price
+
+    if "tax_include" in required_fields and "tax_include" not in record:
+        tax_include = record.get("tax_include") or record.get("tax_included")
+        if isinstance(tax_include, bool):
+            record["tax_include"] = tax_include
+        elif tax_include is not None:
+            record["tax_include"] = tax_include
+
+    if "quantity" in required_fields and "quantity" not in record:
+        quantity = record.get("quantity") or record.get("count")
+        if quantity is not None:
+            record["quantity"] = quantity
+
+    for key in required_fields:
+        record.setdefault(key, "")
+
+
+def _enrich_record_for_endpoint(
+    endpoint_name: str,
+    record: MutableMapping[str, Any],
+    required_fields: Sequence[str],
+) -> None:
+    if endpoint_name == "reservations":
+        _enrich_reservation_record(record, required_fields)
+    elif endpoint_name in {"reservation_rooms", "reservation_room_check_in"}:
+        _enrich_room_record(record, required_fields)
+    elif endpoint_name in {"reservation_slip_reservations", "reservation_revenue"}:
+        _enrich_sales_record(record, required_fields)
+    elif required_fields:
+        for key in required_fields:
+            record.setdefault(key, "")
+
+
 def _resolve_required_fields(endpoint: EndpointConfig) -> Sequence[str]:
-    return tuple(endpoint.ensure_columns)
+    return tuple(ENSURE_COLUMNS_OVERRIDE.get(endpoint.name, endpoint.ensure_columns))
 
 
 def _resolve_column_order(
@@ -600,12 +853,18 @@ def _resolve_column_order(
     normalised_records: Sequence[Mapping[str, str]],
 ) -> list[str]:
     columns: list[str]
-    if endpoint.ensure_columns:
-        columns = list(dict.fromkeys(endpoint.ensure_columns))
+    enforced = ENSURE_COLUMNS_OVERRIDE.get(endpoint.name, endpoint.ensure_columns)
+    if enforced:
+        columns = list(dict.fromkeys(enforced))
     else:
         columns = _collect_columns(normalised_records)
 
-    extras = list(dict.fromkeys(endpoint.context_fields))
+    allowed_set = set(columns)
+    extras = [
+        extra
+        for extra in dict.fromkeys(endpoint.context_fields)
+        if extra in allowed_set or not allowed_set
+    ]
     for extra in extras:
         if extra not in columns:
             columns.append(extra)
@@ -751,6 +1010,10 @@ def _build_grouped_endpoint(
     endpoint_index: Mapping[str, EndpointConfig],
 ) -> EndpointConfig:
     ensure_columns, context_fields = _collect_grouped_fields(endpoint_names, endpoint_index)
+    allowed_columns = GROUPED_ALLOWED_COLUMNS.get(name)
+    if allowed_columns:
+        ensure_columns = list(allowed_columns)
+        context_fields = [field for field in context_fields if field in allowed_columns]
     if "source_endpoint" not in context_fields:
         context_fields.append("source_endpoint")
 
@@ -902,8 +1165,7 @@ def _process_endpoint(
     for record in records:
         enriched = _augment_record(record, endpoint.context_fields, context)
         required_fields = _resolve_required_fields(endpoint)
-        if required_fields:
-            _enrich_reservation_record(enriched, required_fields)
+        _enrich_record_for_endpoint(endpoint.name, enriched, required_fields)
         augmented.append(enriched)
 
     aggregated[endpoint.name].extend(augmented)
