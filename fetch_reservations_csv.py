@@ -58,7 +58,7 @@ ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
         "check_out_date",
         "created",
         "created_at",
-        "status",
+        "control_status",
         "last_modified",
         "person_count",
         "person_count_adult",
@@ -639,7 +639,7 @@ def _enrich_reservation_record(
     if "created_at" in required and "created_at" not in record and "created" in record:
         record["created_at"] = record["created"]
 
-    if "status" in required:
+    if "control_status" in required:
         control_status = record.get("control_status")
         status_value = None
         if isinstance(control_status, Mapping):
@@ -647,10 +647,7 @@ def _enrich_reservation_record(
         elif _is_scalar(control_status):
             status_value = control_status
 
-        if status_value is not None:
-            record["status"] = status_value
-        elif "status" in record:
-            record["status"] = ""
+        record["control_status"] = status_value if status_value is not None else ""
 
     if "last_modified" in required and "last_modified" in record and not _is_scalar(record["last_modified"]):
         last_modified = record["last_modified"]

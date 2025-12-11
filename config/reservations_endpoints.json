@@ -16,7 +16,7 @@
       "check_in_date",
       "created_at",
       "created",
-      "status",
+      "control_status",
       "last_modified",
       "person_count",
       "agent_reservation_number",
