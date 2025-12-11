@@ -45,6 +45,11 @@ python fetch_reservations_csv.py
 スクリプトを実行すると `data/` ディレクトリに `YYYYMMDDHHMMSS_{endpoint_name}.csv` が出力
 されます。レスポンスが空の場合でも、設定した `context_fields` に基づいたヘッダーのみの CSV
 が生成されます。
+加えて、予約に関する複数のエンドポイントをまとめた集約 CSV も同じタイムスタンプで
+`YYYYMMDDHHMMSS_{reservation,accounting,room}.csv` として出力されます。`reservation` は
+予約の基本情報 (`reservations` / `reservation_meal_reservations`)、`accounting` は会計系
+(`reservation_slip_reservations` / `reservation_revenue`)、`room` は部屋関連
+(`reservation_rooms` / `reservation_room_check_in`) を統合したものです。
 
 ### 認証について
 `API/swagger.json` では `securitySchemes` として `AccessToken` が定義されており、
@@ -73,6 +78,8 @@ python fetch_reservations_csv.py
 ## トラブルシューティング
 - `.env` が正しく配置されているか確認してください。
 - プロキシ環境では `requests` に対応する環境変数 (`HTTP_PROXY` など) を設定してください。
+- API から一時的な `429`/`503`/`504` が返る場合は自動で最大 3 回リトライします。頻発する場合は
+  実行間隔を空けて再実行してください。
 - CSV には UTF-8 (BOM 付き) で書き出されるため、Excel でも文字化けせずに開けます。
 - `reservations` が 0 件になるときは、次を確認してください。
   - 予約日が意図せずずれていないか: スクリプト起動時に `(info) reservation_date_from/to: 2025-04-01 -> 2025-04-01` のように解決した日付が表示されます。ここが期待と違う場合は `--date` または `config/reservation_date_range.json` を修正し、`from/to` 両方が埋まっているか確認します。
