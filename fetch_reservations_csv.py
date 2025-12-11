@@ -647,13 +647,10 @@ def _enrich_reservation_record(
         elif _is_scalar(control_status):
             status_value = control_status
 
-        if status_value is None:
-            raw_status = record.get("status")
-            if _is_scalar(raw_status):
-                status_value = raw_status
-
         if status_value is not None:
             record["status"] = status_value
+        elif "status" in record:
+            record["status"] = ""
 
     if "last_modified" in required and "last_modified" in record and not _is_scalar(record["last_modified"]):
         last_modified = record["last_modified"]
