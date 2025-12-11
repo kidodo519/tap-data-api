@@ -919,6 +919,7 @@ def _process_endpoint(
                 session=session,
                 context=child_context,
                 aggregated=aggregated,
+                errors=errors,
             )
 
 
