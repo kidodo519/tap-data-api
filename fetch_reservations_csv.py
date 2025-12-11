@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Mapping, MutableMapping, Sequence
+import time
 
 import requests
 from dotenv import load_dotenv
@@ -30,6 +31,9 @@ DATA_DIR = ROOT / "data"
 SWAGGER_PATH = ROOT / "API" / "swagger.json"
 TIMEZONE = ZoneInfo("Asia/Tokyo") if ZoneInfo is not None else None
 REQUEST_TIMEOUT = 30
+RETRY_STATUSES = {429, 503, 504}
+MAX_RETRIES = 3
+RETRY_BACKOFF_SECONDS = 2
 GROUPED_EXPORTS: dict[str, tuple[str, ...]] = {
     "reservation": (
         "reservations",
@@ -748,33 +752,47 @@ def _request_json(
     headers: Mapping[str, str],
     params: Mapping[str, Any] | None,
 ) -> requests.Response | None:
-    print(f"Request: {method} {url}")
-    if params:
-        print(f"         params={params}")
-    try:
-        response = session.request(
-            method,
-            url,
-            headers=headers,
-            params=params,
-            timeout=REQUEST_TIMEOUT,
-        )
-    except requests.RequestException as exc:
-        print(f"HTTP リクエストに失敗しました: {exc}", file=sys.stderr)
-        return None
+    for attempt in range(1, MAX_RETRIES + 1):
+        print(f"Request: {method} {url}")
+        if params:
+            print(f"         params={params}")
+        try:
+            response = session.request(
+                method,
+                url,
+                headers=headers,
+                params=params,
+                timeout=REQUEST_TIMEOUT,
+            )
+        except requests.RequestException as exc:
+            print(f"HTTP リクエストに失敗しました: {exc}", file=sys.stderr)
+            return None
 
-    print(f"HTTP {response.status_code}")
-    if response.status_code == 204:
-        print("(info) 応答が 204 No Content のためデータは出力されません。")
-        return None
+        print(f"HTTP {response.status_code}")
+        if response.status_code == 204:
+            print("(info) 応答が 204 No Content のためデータは出力されません。")
+            return None
 
-    if not response.ok:
-        print(
-            f"HTTP エラー: {response.status_code} {response.text[:200]}",
-            file=sys.stderr,
-        )
-        return None
-    return response
+        if response.status_code in RETRY_STATUSES:
+            if attempt < MAX_RETRIES:
+                wait_seconds = RETRY_BACKOFF_SECONDS * attempt
+                print(
+                    f"(info) HTTP {response.status_code} のため {wait_seconds} 秒後にリトライします "
+                    f"({attempt}/{MAX_RETRIES - 1})",
+                    file=sys.stderr,
+                )
+                time.sleep(wait_seconds)
+                continue
+
+        if not response.ok:
+            print(
+                f"HTTP エラー: {response.status_code} {response.text[:200]}",
+                file=sys.stderr,
+            )
+            return None
+        return response
+
+    return None
 
 
 def _gather_endpoints(endpoints: Sequence[EndpointConfig]) -> dict[str, EndpointConfig]:
