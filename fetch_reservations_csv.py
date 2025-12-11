@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parent
 ENV_PATH = ROOT / ".env"
 CONFIG_PATH = ROOT / "config" / "reservations_endpoints.json"
 DATE_RANGE_PATH = ROOT / "config" / "reservation_date_range.json"
+OUTPUT_CONFIG_PATH = ROOT / "config" / "reservations_output.json"
 DATA_DIR = ROOT / "data"
 SWAGGER_PATH = ROOT / "API" / "swagger.json"
 TIMEZONE = ZoneInfo("Asia/Tokyo") if ZoneInfo is not None else None
@@ -34,6 +35,7 @@ REQUEST_TIMEOUT = 30
 RETRY_STATUSES = {429, 503, 504}
 MAX_RETRIES = 3
 RETRY_BACKOFF_SECONDS = 2
+DEFAULT_OUTPUT_FORMATS: tuple[str, ...] = ("csv",)
 GROUPED_EXPORTS: dict[str, tuple[str, ...]] = {
     "reservations": (
         "reservations",
@@ -133,6 +135,42 @@ def _load_config(path: Path) -> list[EndpointConfig]:
         print(f"設定ファイルの形式が不正です: {exc}", file=sys.stderr)
         sys.exit(1)
     return configs
+
+
+def _load_output_formats(path: Path) -> tuple[str, ...]:
+    if not path.exists():
+        return DEFAULT_OUTPUT_FORMATS
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"出力設定ファイルの JSON 解析に失敗しました: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    if not isinstance(payload, Mapping):
+        print("出力設定ファイルのルート要素はオブジェクトである必要があります。", file=sys.stderr)
+        sys.exit(1)
+
+    formats = payload.get("formats", DEFAULT_OUTPUT_FORMATS)
+    if not isinstance(formats, Sequence) or isinstance(formats, (str, bytes, bytearray)):
+        print("formats は配列で指定してください。例: [\"csv\", \"json\"]", file=sys.stderr)
+        sys.exit(1)
+
+    allowed = {"csv", "json"}
+    cleaned: list[str] = []
+    for fmt in formats:
+        fmt_str = str(fmt).lower().strip()
+        if not fmt_str:
+            continue
+        if fmt_str not in allowed:
+            print(f"未知の出力形式が指定されています: {fmt}", file=sys.stderr)
+            sys.exit(1)
+        if fmt_str not in cleaned:
+            cleaned.append(fmt_str)
+
+    if not cleaned:
+        cleaned = list(DEFAULT_OUTPUT_FORMATS)
+    return tuple(cleaned)
 
 
 def _apply_inherited_ensure_columns(
@@ -694,20 +732,24 @@ def _collect_grouped_fields(
     return ensure_columns, context_fields
 
 
-def _write_grouped_csv(
-    name: str,
+def _collect_grouped_records(
     endpoint_names: Sequence[str],
     aggregated: Mapping[str, Sequence[Mapping[str, Any]]],
-    endpoint_index: Mapping[str, EndpointConfig],
-    timestamp: str,
-) -> Path:
+) -> list[Mapping[str, Any]]:
     grouped_records: list[Mapping[str, Any]] = []
     for endpoint_name in endpoint_names:
         for record in aggregated.get(endpoint_name, []):
             merged = dict(record)
             merged.setdefault("source_endpoint", endpoint_name)
             grouped_records.append(merged)
+    return grouped_records
 
+
+def _build_grouped_endpoint(
+    name: str,
+    endpoint_names: Sequence[str],
+    endpoint_index: Mapping[str, EndpointConfig],
+) -> EndpointConfig:
     ensure_columns, context_fields = _collect_grouped_fields(endpoint_names, endpoint_index)
     if "source_endpoint" not in context_fields:
         context_fields.append("source_endpoint")
@@ -718,7 +760,28 @@ def _write_grouped_csv(
         ensure_columns=ensure_columns,
         context_fields=context_fields,
     )
-    return _write_csv(grouped_endpoint, grouped_records, timestamp)
+    return grouped_endpoint
+
+
+def _write_grouped_csv(
+    endpoint: EndpointConfig,
+    records: Sequence[Mapping[str, Any]],
+    timestamp: str,
+) -> Path:
+    return _write_csv(endpoint, records, timestamp)
+
+
+def _write_grouped_json(
+    endpoint: EndpointConfig,
+    records: Sequence[Mapping[str, Any]],
+    timestamp: str,
+) -> Path:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    json_path = DATA_DIR / f"{timestamp}_{endpoint.name}.json"
+
+    with json_path.open("w", encoding="utf-8") as fh:
+        json.dump(records, fh, ensure_ascii=False, indent=2)
+    return json_path
 
 
 def _write_csv(
@@ -751,7 +814,7 @@ def _request_json(
     *,
     headers: Mapping[str, str],
     params: Mapping[str, Any] | None,
-) -> requests.Response | None:
+) -> tuple[requests.Response | None, str | None]:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             response = session.request(
@@ -762,32 +825,23 @@ def _request_json(
                 timeout=REQUEST_TIMEOUT,
             )
         except requests.RequestException as exc:
-            print(f"HTTP リクエストに失敗しました: {exc}", file=sys.stderr)
-            return None
+            return None, f"HTTP リクエストに失敗しました: {exc}"
 
         if response.status_code == 204:
-            return None
+            return None, None
 
         if response.status_code in RETRY_STATUSES:
             if attempt < MAX_RETRIES:
                 wait_seconds = RETRY_BACKOFF_SECONDS * attempt
-                print(
-                    f"HTTP {response.status_code} のため {wait_seconds} 秒後にリトライします "
-                    f"({attempt}/{MAX_RETRIES - 1})",
-                    file=sys.stderr,
-                )
                 time.sleep(wait_seconds)
                 continue
+            return None, f"HTTP {response.status_code} が続いたため中断しました"
 
         if not response.ok:
-            print(
-                f"HTTP エラー: {response.status_code} {response.text[:200]}",
-                file=sys.stderr,
-            )
-            return None
-        return response
+            return None, f"HTTP エラー: {response.status_code} {response.text[:200]}"
+        return response, None
 
-    return None
+    return None, f"HTTP エラーが繰り返されたため中断しました"
 
 
 def _gather_endpoints(endpoints: Sequence[EndpointConfig]) -> dict[str, EndpointConfig]:
@@ -813,6 +867,7 @@ def _process_endpoint(
     session: requests.Session,
     context: Mapping[str, Any],
     aggregated: dict[str, list[MutableMapping[str, Any]]],
+    errors: list[str],
 ) -> None:
     formatted_path = _format_template(endpoint.path, context, name=endpoint.name)
     if not formatted_path:
@@ -830,14 +885,16 @@ def _process_endpoint(
         if not params:
             params = None
 
-    response = _request_json(session, endpoint.method, url, headers=headers, params=params)
+    response, error = _request_json(session, endpoint.method, url, headers=headers, params=params)
+    if error:
+        errors.append(f"{endpoint.name}: {error}")
     if response is None:
         return
 
     try:
         payload = response.json()
     except ValueError as exc:
-        print(f"JSON 解析に失敗しました ({endpoint.name}): {exc}", file=sys.stderr)
+        errors.append(f"{endpoint.name}: JSON 解析に失敗しました ({exc})")
         return
 
     records = _coerce_records(payload)
@@ -897,6 +954,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         default=str(SWAGGER_PATH),
         help="全カラムを取得するために参照する Swagger (OpenAPI) JSON のパス (デフォルト: %(default)s)",
     )
+    parser.add_argument(
+        "--output-config",
+        default=str(OUTPUT_CONFIG_PATH),
+        help=(
+            "出力形式を指定する JSON ファイルへのパス (デフォルト: %(default)s)。"
+            "未指定またはファイルが存在しない場合は CSV のみ出力"
+        ),
+    )
     args = parser.parse_args(argv)
 
     _load_env()
@@ -950,6 +1015,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         base_context["reservation_date"] = reservation_date_from
 
     aggregated: dict[str, list[MutableMapping[str, Any]]] = defaultdict(list)
+    errors: list[str] = []
 
     session = requests.Session()
     headers = _build_headers(api_key)
@@ -963,31 +1029,45 @@ def main(argv: Sequence[str] | None = None) -> None:
             session=session,
             context=base_context,
             aggregated=aggregated,
+            errors=errors,
         )
 
+    output_formats = _load_output_formats(Path(args.output_config))
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    output_paths: list[Path] = []
+    grouped_datasets: list[tuple[EndpointConfig, list[Mapping[str, Any]]]] = []
     for grouped_name, endpoint_names in GROUPED_EXPORTS.items():
-        output_paths.append(
-            _write_grouped_csv(
-                grouped_name,
-                endpoint_names,
-                aggregated,
-                endpoint_index,
-                timestamp,
-            )
-        )
-    joined_paths = ", ".join(str(path) for path in output_paths)
-    print(f"(info) 取得と保存が完了しました。出力: {joined_paths}")
-
-    for grouped_name, endpoint_names in GROUPED_EXPORTS.items():
-        _write_grouped_csv(
+        grouped_endpoint = _build_grouped_endpoint(
             grouped_name,
             endpoint_names,
-            aggregated,
             endpoint_index,
-            timestamp,
         )
+        grouped_records = _collect_grouped_records(endpoint_names, aggregated)
+        grouped_datasets.append((grouped_endpoint, grouped_records))
+
+    output_paths: list[Path] = []
+    for fmt in output_formats:
+        for grouped_endpoint, grouped_records in grouped_datasets:
+            if fmt == "json":
+                output_paths.append(
+                    _write_grouped_json(
+                        grouped_endpoint,
+                        grouped_records,
+                        timestamp,
+                    )
+                )
+            else:
+                output_paths.append(
+                    _write_grouped_csv(
+                        grouped_endpoint,
+                        grouped_records,
+                        timestamp,
+                    )
+                )
+    joined_paths = ", ".join(str(path) for path in output_paths)
+    if errors:
+        joined_errors = "; ".join(errors)
+        print(f"(warn) 一部の取得に失敗しました: {joined_errors}", file=sys.stderr)
+    print(f"(info) 取得と保存が完了しました。出力: {joined_paths}")
 
 
 if __name__ == "__main__":

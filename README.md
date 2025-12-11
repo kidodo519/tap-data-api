@@ -33,6 +33,7 @@ python fetch_reservations_csv.py
   `config/reservation_date_range.json` を読み込みます。
 - `--config`: デフォルト以外のエンドポイント設定ファイルを使用する場合に指定します。
 - `--swagger`: `API/swagger.json` 以外の OpenAPI/Swagger JSON を参照したい場合に指定します。
+- `--output-config`: `config/reservations_output.json` 以外の出力設定ファイルを使用する場合に指定します。
 - 対話的に実行するときは `--date` を省略して Enter キーを押すと、プロンプトが表示され手動で
   予約日を入力できます (未入力の場合は昨日の日付が利用されます)。
 
@@ -42,9 +43,11 @@ python fetch_reservations_csv.py
 特定の列を必ず含めたい場合は `config/reservations_endpoints.json` の該当エントリに `ensure_columns`
 を明示的に書き換えれば上書きできます。
 
-スクリプトを実行すると `data/` ディレクトリに、タイムスタンプ付きの 3 つの集約 CSV
-(`YYYYMMDDHHMMSS_reservations.csv` / `YYYYMMDDHHMMSS_sales.csv` / `YYYYMMDDHHMMSS_rooms.csv`)
-のみが出力されます。`reservations` は予約の基本情報 (`reservations` /
+スクリプトを実行すると `data/` ディレクトリに、タイムスタンプ付きの 3 つの集約ファイル
+(`YYYYMMDDHHMMSS_reservations.*` / `YYYYMMDDHHMMSS_sales.*` / `YYYYMMDDHHMMSS_rooms.*`)
+が出力されます。`config/reservations_output.json` の `formats` に `"csv"`/`"json"` を
+列挙すると、指定した拡張子ごとに同名ファイルが生成されます。設定ファイルが存在しない場合は
+従来通り CSV のみを出力します。`reservations` は予約の基本情報 (`reservations` /
 `reservation_meal_reservations`)、`sales` は会計系 (`reservation_slip_reservations` /
 `reservation_revenue`)、`rooms` は部屋関連 (`reservation_rooms` /
 `reservation_room_check_in`) を統合したものです。レスポンスが空の場合でも、設定した
@@ -84,6 +87,6 @@ python fetch_reservations_csv.py
     - 予約日が意図せずずれていないか: スクリプト起動時に `(info) 取得を開始します: 2025-04-01 -> 2025-04-01` のように解決した日付が表示されます。ここが期待と違う場合は `--date` または `config/reservation_date_range.json` を修正し、`from/to` 両方が埋まっているか確認します。
   - API 側にデータが存在するか: 管理画面や DB で、指定した期間に予約があるかを確認します。期間中に予約がない場合は 200 でも 0 件が返ります。
   - 環境変数が正しいか: `.env` の `API_BASE` と `HOTEL_CODE` が稼働環境の値か確認してください。誤ったホテルコードを指定すると、認証は通っても予約一覧が空になります。
-  - クエリを実際に投げているか: 取得開始と完了時に日付範囲と保存先がログに出ます。外形的に実行されていることを確認できます。詳細なリクエスト/レスポンスログは出力しません。
+    - クエリを実際に投げているか: 取得開始と完了時に日付範囲と保存先がログに出ます。外形的に実行されていることを確認できます。詳細なリクエスト/レスポンスログは出力しません。HTTP エラーが発生した場合は完了前に 1 行の警告としてまとめて表示されます。
   - `API/generated_service-set-pms-reservation_README-API.md` の定義では `/hotels/{hotel_id}/reservations` に `from_reservation_date` と `to_reservation_date` が必須で、`control_status` は `Reserve`/`Cancel`/`Stay`/`PartialStay`/`NoShow` のみ受け付けられます。意図しないフィルタを付けていないかを確認してください。
   - 同ドキュメントにはページング用の `next_cursor` が返る場合があると記載されています。ダッシュボードなど他ツールでは件数が多いのに CSV が少ない場合、`cursor` パラメーターを使った追跡取得が必要かを検討してください。
