@@ -35,15 +35,15 @@ RETRY_STATUSES = {429, 503, 504}
 MAX_RETRIES = 3
 RETRY_BACKOFF_SECONDS = 2
 GROUPED_EXPORTS: dict[str, tuple[str, ...]] = {
-    "reservation": (
+    "reservations": (
         "reservations",
         "reservation_meal_reservations",
     ),
-    "accounting": (
+    "sales": (
         "reservation_slip_reservations",
         "reservation_revenue",
     ),
-    "room": (
+    "rooms": (
         "reservation_rooms",
         "reservation_room_check_in",
     ),
@@ -700,7 +700,7 @@ def _write_grouped_csv(
     aggregated: Mapping[str, Sequence[Mapping[str, Any]]],
     endpoint_index: Mapping[str, EndpointConfig],
     timestamp: str,
-) -> None:
+) -> Path:
     grouped_records: list[Mapping[str, Any]] = []
     for endpoint_name in endpoint_names:
         for record in aggregated.get(endpoint_name, []):
@@ -718,14 +718,14 @@ def _write_grouped_csv(
         ensure_columns=ensure_columns,
         context_fields=context_fields,
     )
-    _write_csv(grouped_endpoint, grouped_records, timestamp)
+    return _write_csv(grouped_endpoint, grouped_records, timestamp)
 
 
 def _write_csv(
     endpoint: EndpointConfig,
     records: Sequence[Mapping[str, Any]],
     timestamp: str,
-) -> None:
+) -> Path:
     name = endpoint.name
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     csv_path = DATA_DIR / f"{timestamp}_{name}.csv"
@@ -741,7 +741,7 @@ def _write_csv(
         writer.writeheader()
         for record in normalised:
             writer.writerow({column: record.get(column, "") for column in columns})
-    print(f"Saved CSV  : {csv_path} ({csv_path.stat().st_size} bytes)")
+    return csv_path
 
 
 def _request_json(
@@ -753,9 +753,6 @@ def _request_json(
     params: Mapping[str, Any] | None,
 ) -> requests.Response | None:
     for attempt in range(1, MAX_RETRIES + 1):
-        print(f"Request: {method} {url}")
-        if params:
-            print(f"         params={params}")
         try:
             response = session.request(
                 method,
@@ -768,16 +765,14 @@ def _request_json(
             print(f"HTTP リクエストに失敗しました: {exc}", file=sys.stderr)
             return None
 
-        print(f"HTTP {response.status_code}")
         if response.status_code == 204:
-            print("(info) 応答が 204 No Content のためデータは出力されません。")
             return None
 
         if response.status_code in RETRY_STATUSES:
             if attempt < MAX_RETRIES:
                 wait_seconds = RETRY_BACKOFF_SECONDS * attempt
                 print(
-                    f"(info) HTTP {response.status_code} のため {wait_seconds} 秒後にリトライします "
+                    f"HTTP {response.status_code} のため {wait_seconds} 秒後にリトライします "
                     f"({attempt}/{MAX_RETRIES - 1})",
                     file=sys.stderr,
                 )
@@ -942,7 +937,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
 
     print(
-        "(info) reservation_date_from/to:",
+        "(info) 取得を開始します:",
         f"{reservation_date_from} -> {reservation_date_to}",
     )
 
@@ -970,15 +965,20 @@ def main(argv: Sequence[str] | None = None) -> None:
             aggregated=aggregated,
         )
 
-    print("(info) collected records:")
-    for name in endpoint_index:
-        count = len(aggregated.get(name, []))
-        print(f"(info)  - {name}: {count} record(s)")
-
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    for name, endpoint in endpoint_index.items():
-        records = aggregated.get(name, [])
-        _write_csv(endpoint, records, timestamp)
+    output_paths: list[Path] = []
+    for grouped_name, endpoint_names in GROUPED_EXPORTS.items():
+        output_paths.append(
+            _write_grouped_csv(
+                grouped_name,
+                endpoint_names,
+                aggregated,
+                endpoint_index,
+                timestamp,
+            )
+        )
+    joined_paths = ", ".join(str(path) for path in output_paths)
+    print(f"(info) 取得と保存が完了しました。出力: {joined_paths}")
 
     for grouped_name, endpoint_names in GROUPED_EXPORTS.items():
         _write_grouped_csv(
