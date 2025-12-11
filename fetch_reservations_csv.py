@@ -980,6 +980,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     joined_paths = ", ".join(str(path) for path in output_paths)
     print(f"(info) 取得と保存が完了しました。出力: {joined_paths}")
 
+    for grouped_name, endpoint_names in GROUPED_EXPORTS.items():
+        _write_grouped_csv(
+            grouped_name,
+            endpoint_names,
+            aggregated,
+            endpoint_index,
+            timestamp,
+        )
+
 
 if __name__ == "__main__":
     main()
