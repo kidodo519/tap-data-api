@@ -1,0 +1,2000 @@
+[
+  {
+    "id ": "77002cb70a04040e1ddd26bf7b9b358d",
+    "reservation_number": "904311",
+    "check_in_date": "2025-11-04T00:00:00+09:00",
+    "check_out_date": "2025-11-05T00:00:00+09:00",
+    "room_sales_status": {
+      "status": "Tentative"
+    },
+    "control_status": {
+      "status": "Cancel"
+    },
+    "person_count": 32,
+    "main_guest": {
+      "person": {
+        "kana_name": "シュンリョクノカミコウチ",
+        "name": "旬緑の上高地",
+        "address": {
+          "postal_code": "",
+          "prefecture_code": null,
+          "city": "",
+          "address_line": [
+            "",
+            ""
+          ]
+        },
+        "phone_no": "",
+        "phone_no_mobile": "",
+        "phone_no_other": null,
+        "gender": null,
+        "birthday": null,
+        "email": "",
+        "email_sub": "",
+        "external_customer_Id": ""
+      },
+      "remarks": [],
+      "remak": null,
+      "id": "77002cb70a04040e1ddd26bf7b6da9df",
+      "customer_number": "2010912003",
+      "is_deleted": null
+    },
+    "reserved_by": {
+      "person": {
+        "kana_name": "",
+        "name": "読売旅行 関西",
+        "address": {
+          "postal_code": null,
+          "prefecture_code": null,
+          "city": null,
+          "address_line": [
+            null,
+            null
+          ]
+        },
+        "phone_no": "",
+        "phone_no_mobile": "",
+        "phone_no_other": null,
+        "gender": null,
+        "birthday": null,
+        "email": null,
+        "email_sub": null,
+        "external_customer_Id": ""
+      },
+      "remarks": [],
+      "remak": null,
+      "id": "77002cb70a04040e1ddd26bf6ca63b9e",
+      "customer_number": "",
+      "is_deleted": null
+    },
+    "remarks": [],
+    "reservation_remarks": [],
+    "room_reservations": [
+      {
+        "id": "77002cb70a04040e1ddd26bfe20ee37d",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [
+          {
+            "person": {
+              "kana_name": "シュンリョクノカミコウチ",
+              "name": "旬緑の上高地",
+              "address": {
+                "postal_code": "",
+                "prefecture_code": null,
+                "city": "",
+                "address_line": [
+                  "",
+                  ""
+                ]
+              },
+              "phone_no": "",
+              "phone_no_mobile": "",
+              "phone_no_other": null,
+              "gender": null,
+              "birthday": null,
+              "email": "",
+              "email_sub": "",
+              "external_customer_Id": ""
+            },
+            "remarks": [],
+            "remak": null,
+            "id": "77002cb70a04040e1ddd26bf31b7824e",
+            "customer_number": "2010912003",
+            "is_deleted": null
+          }
+        ],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bfcabf2dd8",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bfc86457fb",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf715ccf4c",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf53f6e411",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bfd57e9ac3",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf4781422c",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bfa8820fc0",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf30d8b981",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf003436e6",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf498a3881",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf639550b8",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bfe40c6001",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf12936379",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf48371fab",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "77002cb70a04040e1ddd26bf140ab6a8",
+        "stay_registration_id ": null,
+        "room_number": "null",
+        "room_status": null,
+        "guests": [],
+        "room_type": {
+          "code": "11",
+          "standard_persons": 2,
+          "max_persons": 2,
+          "name": "アウトバス２",
+          "short_name": "ＯＢ２",
+          "kana_name": "アウトバス2",
+          "foreign_name": null,
+          "foreign_short_name": null
+        },
+        "sales_control_type": "TENTATIVE",
+        "sales_control_unit": "SCU_TENTATIVE",
+        "extra_bed_count": null,
+        "stay_period": {
+          "arrival_date": "2025-11-04",
+          "arrival_time": null,
+          "departure_date": "2025-11-05",
+          "departure_time": null,
+          "late_out": false
+        },
+        "reservation_route": {
+          "reservationDisplayName": "4-エージェン-98-募集-108-湯本",
+          "reservationRoutes": [
+            {
+              "code": "4",
+              "name": "エージェント",
+              "short_name": "エージェン",
+              "kana_name": "エージェント",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "98",
+              "name": "募集",
+              "short_name": "募集",
+              "kana_name": "ボシュウ",
+              "foreign_name": null,
+              "foreign_short_name": null
+            },
+            {
+              "code": "108",
+              "name": "湯本",
+              "short_name": "湯本",
+              "kana_name": "ユモト",
+              "foreign_name": null,
+              "foreign_short_name": null
+            }
+          ]
+        },
+        "agent_reservation_number": null,
+        "agent_course": null,
+        "person_count": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "pricing": {
+          "sales_package": null,
+          "discount_item": {
+            "code": "C",
+            "name": "コンプリメンタリー",
+            "short_name": "コンプ",
+            "kana_name": "コンプリメンタリー",
+            "foreign_name": "C",
+            "foreign_short_name": null,
+            "rate": 0,
+            "amount": 0
+          },
+          "discount_rate": null,
+          "discount_amount": null,
+          "pricing_type": "COMPLIMENTARY",
+          "price": 0
+        },
+        "provision_requests": [],
+        "meal_reservations": null,
+        "deposits": [],
+        "slip_items": [],
+        "extra_services": [],
+        "remarks": [],
+        "price_changes": [
+          {
+            "date_range_end": "2025-11-04",
+            "date_range_start": "2025-11-04",
+            "prices": [
+              {
+                "discount_amount": null,
+                "discount_item_id": "C",
+                "discount_item_name": "コンプリメンタリー",
+                "discount_rate": null,
+                "person_count": [
+                  2,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "person_count_price_calc": 2,
+                "price": 0,
+                "pricing_type": "COMPLIMENTARY",
+                "rate_id": null,
+                "room_type_code": null,
+                "sales_package_id": null,
+                "sales_package_name": null
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "is_group": true,
+    "total_stay_period": {
+      "arrival_date": "2025-11-04",
+      "arrival_time": null,
+      "departure_date": "2025-11-05",
+      "departure_time": null,
+      "late_out": false
+    },
+    "marketing_area": null,
+    "last_modified": "2025-08-22T23:56:25.229+00:00",
+    "created": "2025-01-18T01:21:49.172+00:00",
+    "primary_remark": null,
+    "is_process": null,
+    "reservation_date_from": "2025-11-01",
+    "reservation_date_to": "2025-11-05",
+    "reservation_id": "904311",
+    "created_at": "2025-01-18T01:21:49.172+00:00",
+    "status": "Cancel",
+    "customer_number": "2010912003",
+    "name": "旬緑の上高地",
+    "phone_no": "",
+    "address": "",
+    "agent_reservation_number": "",
+    "email": "",
+    "source_endpoint": "reservations"
+  }
