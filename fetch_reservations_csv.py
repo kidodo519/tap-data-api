@@ -53,6 +53,7 @@ GROUPED_EXPORTS: dict[str, tuple[str, ...]] = {
 
 ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
     "reservations": (
+        "id",
         "reservation_number",
         "check_in_date",
         "check_out_date",
@@ -84,11 +85,13 @@ ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
         "reservation_number",
         "date",
         "room_number",
+        "request_url",
     ),
     "reservation_room_check_in": (
         "reservation_number",
         "date",
         "room_number",
+        "request_url",
     ),
     "reservation_slip_reservations": (
         "reservation_number",
@@ -97,6 +100,7 @@ ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
         "total_price",
         "tax_include",
         "quantity",
+        "request_url",
     ),
     "reservation_revenue": (
         "reservation_number",
@@ -105,6 +109,7 @@ ENSURE_COLUMNS_OVERRIDE: dict[str, tuple[str, ...]] = {
         "total_price",
         "tax_include",
         "quantity",
+        "request_url",
     ),
 }
 
@@ -1133,6 +1138,10 @@ def _process_endpoint(
         return
     url = _build_url(api_base, hotel_code, formatted_path)
 
+    request_url: str | None = None
+    if endpoint.name != "reservations":
+        request_url = url
+
     params: dict[str, Any] | None = None
     if endpoint.params:
         params = {}
@@ -1159,6 +1168,10 @@ def _process_endpoint(
     records = _coerce_records(payload)
     augmented: list[MutableMapping[str, Any]] = []
     for record in records:
+        if request_url is not None and "request_url" not in record:
+            record = dict(record)
+            record["request_url"] = request_url
+
         enriched = _augment_record(record, endpoint.context_fields, context)
         required_fields = _resolve_required_fields(endpoint)
         _enrich_record_for_endpoint(endpoint.name, enriched, required_fields)
