@@ -1,0 +1,72 @@
+reservation_date_range:
+  from: "2025-01-01"
+  to: "2025-01-01"
+
+reservations_endpoints:
+  - name: reservations
+    path: reservations
+    params:
+      from_reservation_date: "{reservation_date_from}"
+      to_reservation_date: "{reservation_date_to}"
+    context_fields:
+      - reservation_date_from
+      - reservation_date_to
+    ensure_columns:
+      - reservation_id
+      - reservation_number
+      - check_in_date
+      - created_at
+      - created
+      - control_status
+      - last_modified
+      - person_count
+      - agent_reservation_number
+      - name
+      - address
+      - phone_no
+      - email
+      - customer_number
+    children:
+      - name: reservation_rooms
+        path: reservations/{reservation_id}/rooms
+        context_fields:
+          - reservation_id
+          - reservation_number
+          - reservation_date_from
+          - reservation_date_to
+        inherit_ensure_columns: true
+        children:
+          - name: reservation_room_check_in
+            path: reservations/{reservation_id}/rooms/{room_reservation_id}/check-in
+            context_fields:
+              - reservation_id
+              - room_reservation_id
+              - reservation_number
+              - reservation_date_from
+              - reservation_date_to
+      - name: reservation_meal_reservations
+        path: reservations/{reservation_id}/meal-reservations
+        context_fields:
+          - reservation_id
+          - reservation_date_from
+          - reservation_date_to
+        inherit_ensure_columns: true
+      - name: reservation_slip_reservations
+        path: reservations/{reservation_id}/slip-reservations
+        context_fields:
+          - reservation_id
+          - reservation_number
+          - reservation_date_from
+          - reservation_date_to
+        inherit_ensure_columns: true
+      - name: reservation_revenue
+        path: reservations/{reservation_id}/revenue
+        context_fields:
+          - reservation_id
+          - reservation_number
+          - reservation_date_from
+          - reservation_date_to
+        inherit_ensure_columns: true
+
+reservations_output:
+  formats: ["csv"]

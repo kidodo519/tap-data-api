@@ -13,39 +13,63 @@ TapHub の API を叩いて CSV を保存するワンショットツールです
 ## 使い方
 ### 予約関連 API を日次で収集する
 予約一覧と、その予約 ID を使う関連エンドポイントをまとめて取得したい場合は
-`fetch_reservations_csv.py` を使用します。設定ファイル `config/reservations_endpoints.json`
-に呼び出すエンドポイントと付随するパラメーターを列挙しておくと、スクリプトが順番に
-リクエストを実行し CSV として保存します。予約日の範囲は `config/reservation_date_range.json`
-に JSON 形式で保存しておくと読み込まれます (`{"from": "2025-01-01", "to": "2025-01-07"}` のように
-指定)。雛形として `config/reservation_date_range.json.example` を用意しているのでコピーして使用して
-ください。ファイルが存在しない場合は JST の「昨日」が `from`/`to` 共通の日付として利用されます。
+`main.py` を使用します。設定はリポジトリルートの `config.yaml` にまとめます。
+呼び出すエンドポイントと付随するパラメーターを `reservations_endpoints` 配列として列挙しておくと、
+スクリプトが順番にリクエストを実行し CSV として保存します。予約日の範囲は
+`reservation_date_range` で指定できます (`from`/`to` が未設定の場合は JST の「昨日」が共通日付として利用されます)。
+出力形式は `reservations_output.formats` に `csv`/`json` を配列で列挙してください。設定例:
+
+```yaml
+reservation_date_range:
+  from: "2025-01-01"
+  to: "2025-01-01"
+
+reservations_endpoints:
+  - name: reservations
+    path: reservations
+    params:
+      from_reservation_date: "{reservation_date_from}"
+      to_reservation_date: "{reservation_date_to}"
+    context_fields:
+      - reservation_date_from
+      - reservation_date_to
+    children:
+      - name: reservation_rooms
+        path: reservations/{reservation_id}/rooms
+        context_fields:
+          - reservation_id
+          - reservation_number
+          - reservation_date_from
+          - reservation_date_to
+        inherit_ensure_columns: true
+reservations_output:
+  formats: ["csv"]
+```
+
 取得した予約の `reservation_id` を使って子エンドポイントも呼び出します。
 
 ```bash
-python fetch_reservations_csv.py
+python main.py
 ```
 
 オプション:
 
 - `--date`: `YYYY-MM-DD` 形式で単一日を指定できます。`from`/`to` の両方に同じ日付が適用されます。
 - `--from-date`, `--to-date`: `YYYY-MM-DD` 形式で予約日の開始・終了を指定します。セットで使用します。
-- `--date-range-file`: `from`/`to` を保持した JSON ファイルのパスを指定します。省略時は
-  `config/reservation_date_range.json` を読み込みます。
-- `--config`: デフォルト以外のエンドポイント設定ファイルを使用する場合に指定します。
+- `--config`: デフォルト以外の YAML 設定ファイルを使用する場合に指定します。
 - `--swagger`: `API/swagger.json` 以外の OpenAPI/Swagger JSON を参照したい場合に指定します。
-- `--output-config`: `config/reservations_output.json` 以外の出力設定ファイルを使用する場合に指定します。
 - 対話的に実行するときは `--date` を省略して Enter キーを押すと、プロンプトが表示され手動で
   予約日を入力できます (未入力の場合は昨日の日付が利用されます)。
 
 エンドポイントごとの全カラムを出力するため、デフォルトで `API/swagger.json` から取得したレスポンス
 スキーマを走査し、200 応答に含まれるプロパティ名を `ensure_columns` に自動設定します。Swagger を
 変更した場合は、スクリプト実行時に `--swagger` で更新後のファイルを指すようにしてください。
-特定の列を必ず含めたい場合は `config/reservations_endpoints.json` の該当エントリに `ensure_columns`
+特定の列を必ず含めたい場合は `config.yaml` の該当エントリに `ensure_columns`
 を明示的に書き換えれば上書きできます。
 
 スクリプトを実行すると `data/` ディレクトリに、タイムスタンプ付きの 3 つの集約ファイル
 (`YYYYMMDDHHMMSS_reservations.*` / `YYYYMMDDHHMMSS_sales.*` / `YYYYMMDDHHMMSS_rooms.*`)
-が出力されます。`config/reservations_output.json` の `formats` に `"csv"`/`"json"` を
+が出力されます。`config.yaml` の `reservations_output.formats` に `"csv"`/`"json"` を
 列挙すると、指定した拡張子ごとに同名ファイルが生成されます。設定ファイルが存在しない場合は
 従来通り CSV のみを出力します。`reservations` は予約の基本情報 (`reservations` /
 `reservation_meal_reservations`)、`sales` は会計系 (`reservation_slip_reservations` /
@@ -84,7 +108,7 @@ python fetch_reservations_csv.py
   実行間隔を空けて再実行してください。
 - CSV には UTF-8 (BOM 付き) で書き出されるため、Excel でも文字化けせずに開けます。
 - `reservations` が 0 件になるときは、次を確認してください。
-    - 予約日が意図せずずれていないか: スクリプト起動時に `(info) 取得を開始します: 2025-04-01 -> 2025-04-01` のように解決した日付が表示されます。ここが期待と違う場合は `--date` または `config/reservation_date_range.json` を修正し、`from/to` 両方が埋まっているか確認します。
+    - 予約日が意図せずずれていないか: スクリプト起動時に `(info) 取得を開始します: 2025-04-01 -> 2025-04-01` のように解決した日付が表示されます。ここが期待と違う場合は `--date` または `config.yaml` の `reservation_date_range` を修正し、`from`/`to` 両方が埋まっているか確認します。
   - API 側にデータが存在するか: 管理画面や DB で、指定した期間に予約があるかを確認します。期間中に予約がない場合は 200 でも 0 件が返ります。
   - 環境変数が正しいか: `.env` の `API_BASE` と `HOTEL_CODE` が稼働環境の値か確認してください。誤ったホテルコードを指定すると、認証は通っても予約一覧が空になります。
     - クエリを実際に投げているか: 取得開始と完了時に日付範囲と保存先がログに出ます。外形的に実行されていることを確認できます。詳細なリクエスト/レスポンスログは出力しません。HTTP エラーが発生した場合は完了前に 1 行の警告としてまとめて表示されます。

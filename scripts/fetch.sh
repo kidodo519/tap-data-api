@@ -13,4 +13,4 @@ if [[ ! -f "$ROOT_DIR/.env" ]]; then
   exit 1
 fi
 
-exec "$PYTHON_BIN" "$ROOT_DIR/fetch_reservations_csv.py"
+exec "$PYTHON_BIN" "$ROOT_DIR/main.py"

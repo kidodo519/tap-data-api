@@ -12,4 +12,4 @@ if (-Not (Test-Path (Join-Path $RootDir '.env'))) {
     Write-Error '.env が見つかりません（.env.example をコピーして作成してください）'
 }
 
-& $PythonBin (Join-Path $RootDir 'fetch_reservations_csv.py')
+& $PythonBin (Join-Path $RootDir 'main.py')
