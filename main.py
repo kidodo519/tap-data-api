@@ -17,6 +17,7 @@ import time
 
 import requests
 from dotenv import load_dotenv
+import yaml
 
 try:
     from zoneinfo import ZoneInfo
@@ -25,9 +26,7 @@ except ImportError:  # pragma: no cover - Python < 3.9 is unsupported but guard 
 
 ROOT = Path(__file__).resolve().parent
 ENV_PATH = ROOT / ".env"
-CONFIG_PATH = ROOT / "config" / "reservations_endpoints.json"
-DATE_RANGE_PATH = ROOT / "config" / "reservation_date_range.json"
-OUTPUT_CONFIG_PATH = ROOT / "config" / "reservations_output.json"
+CONFIG_PATH = ROOT / "config.yaml"
 DATA_DIR = ROOT / "data"
 SWAGGER_PATH = ROOT / "API" / "swagger.json"
 TIMEZONE = ZoneInfo("Asia/Tokyo") if ZoneInfo is not None else None
@@ -194,18 +193,29 @@ def _load_env() -> None:
     load_dotenv(ENV_PATH)
 
 
-def _load_config(path: Path) -> list[EndpointConfig]:
+def _load_settings(path: Path) -> Mapping[str, Any]:
     if not path.exists():
         print(f"設定ファイルが見つかりません: {path}", file=sys.stderr)
         sys.exit(1)
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        print(f"設定ファイルの JSON 解析に失敗しました: {exc}", file=sys.stderr)
+        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        print(f"設定ファイルの YAML 解析に失敗しました: {exc}", file=sys.stderr)
         sys.exit(1)
 
+    if not isinstance(payload, Mapping):
+        print("設定ファイルのルート要素はオブジェクトである必要があります。", file=sys.stderr)
+        sys.exit(1)
+    return payload
+
+
+def _load_endpoint_configs(settings: Mapping[str, Any]) -> list[EndpointConfig]:
+    payload = settings.get("reservations_endpoints") or settings.get("endpoints")
+    if payload is None:
+        print("設定ファイルに 'reservations_endpoints' が含まれていません。", file=sys.stderr)
+        sys.exit(1)
     if not isinstance(payload, Sequence):
-        print("設定ファイルのルート要素は配列である必要があります。", file=sys.stderr)
+        print("reservations_endpoints は配列で指定してください。", file=sys.stderr)
         sys.exit(1)
     try:
         configs = [EndpointConfig.from_mapping(item) for item in payload]
@@ -215,18 +225,13 @@ def _load_config(path: Path) -> list[EndpointConfig]:
     return configs
 
 
-def _load_output_formats(path: Path) -> tuple[str, ...]:
-    if not path.exists():
+def _load_output_formats(settings: Mapping[str, Any]) -> tuple[str, ...]:
+    payload = settings.get("reservations_output") or settings.get("output")
+    if payload is None:
         return DEFAULT_OUTPUT_FORMATS
 
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        print(f"出力設定ファイルの JSON 解析に失敗しました: {exc}", file=sys.stderr)
-        sys.exit(1)
-
     if not isinstance(payload, Mapping):
-        print("出力設定ファイルのルート要素はオブジェクトである必要があります。", file=sys.stderr)
+        print("出力設定はオブジェクト形式で指定してください。", file=sys.stderr)
         sys.exit(1)
 
     formats = payload.get("formats", DEFAULT_OUTPUT_FORMATS)
@@ -404,25 +409,19 @@ def _parse_iso_date(candidate: str, *, label: str) -> date:
         sys.exit(1)
 
 
-def _load_date_range_from_file(path: Path) -> tuple[date, date]:
-    if not path.exists():
+def _load_date_range_from_config(config: Mapping[str, Any] | None) -> tuple[date, date]:
+    if not config:
         return _default_reservation_range()
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        print(f"予約日ファイルの JSON 解析に失敗しました: {exc}", file=sys.stderr)
+    if not isinstance(config, Mapping):
+        print("予約日の設定はオブジェクト形式で 'from' と 'to' を指定してください。", file=sys.stderr)
         sys.exit(1)
 
-    if not isinstance(payload, Mapping):
-        print("予約日ファイルの形式が不正です。オブジェクト形式で 'from' と 'to' を指定してください。", file=sys.stderr)
-        sys.exit(1)
-
-    start_raw = payload.get("from") or payload.get("start") or payload.get("reservation_date_from")
-    end_raw = payload.get("to") or payload.get("end") or payload.get("reservation_date_to")
+    start_raw = config.get("from") or config.get("start") or config.get("reservation_date_from")
+    end_raw = config.get("to") or config.get("end") or config.get("reservation_date_to")
     if start_raw is None and end_raw is None:
         return _default_reservation_range()
     if start_raw is None or end_raw is None:
-        print("予約日ファイルには 'from' と 'to' の両方を指定してください。", file=sys.stderr)
+        print("予約日には 'from' と 'to' の両方を指定してください。", file=sys.stderr)
         sys.exit(1)
 
     start = _parse_iso_date(str(start_raw), label="from")
@@ -435,7 +434,7 @@ def _resolve_reservation_range(
     single_day: str | None,
     from_date: str | None,
     to_date: str | None,
-    file_path: Path,
+    settings: Mapping[str, Any],
 ) -> tuple[str, str]:
     if single_day:
         start = end = _parse_iso_date(single_day, label="--date")
@@ -446,7 +445,7 @@ def _resolve_reservation_range(
         start = _parse_iso_date(from_date, label="--from-date")
         end = _parse_iso_date(to_date, label="--to-date")
     else:
-        start, end = _load_date_range_from_file(file_path)
+        start, end = _load_date_range_from_config(settings.get("reservation_date_range"))
 
     if start > end:
         print("予約日の範囲が不正です。from は to 以前の日付を指定してください。", file=sys.stderr)
@@ -1250,7 +1249,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "--config",
         default=str(CONFIG_PATH),
-        help="JSON ファイルで定義されたエンドポイント設定へのパス (デフォルト: %(default)s)",
+        help="エンドポイントや日付範囲などをまとめた YAML 設定ファイルへのパス (デフォルト: %(default)s)",
     )
     parser.add_argument(
         "--date",
@@ -1265,30 +1264,15 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="予約日の終了日 (YYYY-MM-DD)。--from-date とセットで使用",
     )
     parser.add_argument(
-        "--date-range-file",
-        default=str(DATE_RANGE_PATH),
-        help=(
-            "予約日の範囲を JSON 形式で記述したファイルパス"
-            " (デフォルト: %(default)s)。--date または --from-date/--to-date が未指定の場合に使用"
-        ),
-    )
-    parser.add_argument(
         "--swagger",
         default=str(SWAGGER_PATH),
         help="全カラムを取得するために参照する Swagger (OpenAPI) JSON のパス (デフォルト: %(default)s)",
     )
-    parser.add_argument(
-        "--output-config",
-        default=str(OUTPUT_CONFIG_PATH),
-        help=(
-            "出力形式を指定する JSON ファイルへのパス (デフォルト: %(default)s)。"
-            "未指定またはファイルが存在しない場合は CSV のみ出力"
-        ),
-    )
     args = parser.parse_args(argv)
 
     _load_env()
-    configs = _load_config(Path(args.config))
+    settings = _load_settings(Path(args.config))
+    configs = _load_endpoint_configs(settings)
     swagger_spec = _load_swagger(Path(args.swagger))
     if swagger_spec:
         _apply_schema_columns(configs, swagger_spec)
@@ -1321,7 +1305,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         single_day=args.date,
         from_date=args.from_date,
         to_date=args.to_date,
-        file_path=Path(args.date_range_file),
+        settings=settings,
     )
 
     print(
@@ -1355,7 +1339,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             errors=errors,
         )
 
-    output_formats = _load_output_formats(Path(args.output_config))
+    output_formats = _load_output_formats(settings)
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     grouped_datasets: list[tuple[EndpointConfig, list[Mapping[str, Any]]]] = []
     for grouped_name, endpoint_names in GROUPED_EXPORTS.items():
