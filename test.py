@@ -38,27 +38,28 @@ def main() -> None:
     api_base = _require_env("API_BASE").rstrip("/")
     hotel_code = _require_env("HOTEL_CODE")
     api_key = _require_env("TAP_API_KEY")
-    resource = os.getenv("TAP_RESOURCE", "provisions").strip("/") or "provisions"
 
-    url = f"{api_base}/hotels/{hotel_code}/{resource}"
+    url = f"{api_base}/hotels/{hotel_code}/reservations"
     cursor: str | None = None
     headers = {"X-API-Key": api_key}
+    output_path = ROOT / "reservations.jsonl"
 
-    while True:
-        params = {"cursor": cursor} if cursor else None
-        response = requests.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
-        payload = response.json()
+    with output_path.open("w", encoding="utf-8") as outfile:
+        while True:
+            params = {"cursor": cursor} if cursor else None
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status()
+            payload = response.json()
 
-        for item in _extract_items(payload, preferred_key=resource):
-            print(json.dumps(item, ensure_ascii=False))
+            for item in _extract_items(payload, preferred_key="reservations"):
+                outfile.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-        if isinstance(payload, dict):
-            cursor = payload.get("next_cursor") or payload.get("cursor")
-        else:
-            cursor = None
-        if not cursor:
-            break
+            if isinstance(payload, dict):
+                cursor = payload.get("next_cursor") or payload.get("cursor")
+            else:
+                cursor = None
+            if not cursor:
+                break
 
 
 if __name__ == "__main__":
