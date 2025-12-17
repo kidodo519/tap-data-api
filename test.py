@@ -41,6 +41,7 @@ def main() -> None:
     reservation_date_from = _require_env("FROM_RESERVATION_DATE")
     reservation_date_to = _require_env("TO_RESERVATION_DATE")
     initial_cursor = os.getenv("INITIAL_CURSOR")
+    control_status = os.getenv("CONTROL_STATUS")
 
     url = f"{api_base}/hotels/{hotel_code}/reservations"
     cursor: str | None = initial_cursor
@@ -53,6 +54,8 @@ def main() -> None:
                 "from_reservation_date": reservation_date_from,
                 "to_reservation_date": reservation_date_to,
             }
+            if control_status:
+                params["control_status"] = control_status
             if cursor:
                 params["cursor"] = cursor
 
