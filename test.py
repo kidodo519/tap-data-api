@@ -76,6 +76,8 @@ def main() -> None:
                     csv_writer.writeheader()
                 csv_writer.writerow({key: item.get(key, "") for key in fieldnames})
 
+            cursor = next_cursor
+
 
 if __name__ == "__main__":
     main()
