@@ -33,6 +33,9 @@ reservations_endpoints:
     context_fields:
       - reservation_date_from
       - reservation_date_to
+    column_types:
+      reservation_id: integer
+      check_in_date: date
     children:
       - name: reservation_rooms
         path: reservations/{reservation_id}/rooms
@@ -76,6 +79,10 @@ python main.py
 `reservation_revenue`)、`rooms` は部屋関連 (`reservation_rooms` /
 `reservation_room_check_in`) を統合したものです。レスポンスが空の場合でも、設定した
 `context_fields` に基づいたヘッダーのみの CSV が生成されます。
+
+`column_types` をエンドポイントごとに指定すると、`integer`/`date`/`datetime`/`boolean`/`string`
+といった型ラベルに応じて取得データを軽量な共通関数で整形します。カラム単位での変換処理を
+`config.yaml` 側へ寄せられるため、`main.py` の変更を抑えつつ型整形を行えます。
 
 ### 認証について
 `API/swagger.json` では `securitySchemes` として `AccessToken` が定義されており、

@@ -128,6 +128,67 @@ GROUPED_ALLOWED_COLUMNS: dict[str, tuple[str, ...]] = {
     "sales": ENSURE_COLUMNS_OVERRIDE["reservation_slip_reservations"],
 }
 
+
+def _convert_to_int(value: Any) -> Any:
+    try:
+        return int(str(value))
+    except (TypeError, ValueError):
+        return value
+
+
+def _convert_to_date(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+        return parsed.date().isoformat()
+    return value
+
+
+def _convert_to_datetime(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time()).isoformat()
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value).isoformat()
+        except ValueError:
+            return value
+    return value
+
+
+def _convert_to_bool(value: Any) -> Any:
+    if isinstance(value, bool):
+        return value
+    if value in {"1", "true", "True", 1}:
+        return True
+    if value in {"0", "false", "False", 0}:
+        return False
+    return value
+
+
+def _convert_to_string(value: Any) -> Any:
+    if value is None:
+        return ""
+    return str(value)
+
+
+COLUMN_CONVERTERS: dict[str, Any] = {
+    "int": _convert_to_int,
+    "integer": _convert_to_int,
+    "date": _convert_to_date,
+    "datetime": _convert_to_datetime,
+    "bool": _convert_to_bool,
+    "boolean": _convert_to_bool,
+    "string": _convert_to_string,
+}
+
 @dataclass
 class EndpointConfig:
     name: str
@@ -136,6 +197,7 @@ class EndpointConfig:
     params: Mapping[str, str] = field(default_factory=dict)
     context_fields: Sequence[str] = field(default_factory=list)
     ensure_columns: Sequence[str] = field(default_factory=list)
+    column_types: Mapping[str, str] = field(default_factory=dict)
     inherit_ensure_columns: bool = False
     children: Sequence["EndpointConfig"] = field(default_factory=list)
 
@@ -165,6 +227,11 @@ class EndpointConfig:
             raise ValueError(f"ensure_columns for '{name}' must be an array of strings")
         ensure_columns = [str(column) for column in ensure_columns]
 
+        raw_column_types = payload.get("column_types", {})
+        if not isinstance(raw_column_types, Mapping):
+            raise ValueError(f"column_types for '{name}' must be an object")
+        column_types = {str(key): str(value) for key, value in raw_column_types.items()}
+
         inherit_ensure_columns = payload.get("inherit_ensure_columns", False)
         if not isinstance(inherit_ensure_columns, bool):
             raise ValueError(f"inherit_ensure_columns for '{name}' must be a boolean")
@@ -181,6 +248,7 @@ class EndpointConfig:
             params=params,  # type: ignore[arg-type]
             context_fields=context_fields,
             ensure_columns=ensure_columns,
+            column_types=column_types,
             inherit_ensure_columns=inherit_ensure_columns,
             children=children,
         )
@@ -892,6 +960,23 @@ def _enrich_record_for_endpoint(
             record.setdefault(key, "")
 
 
+def _apply_column_types(
+    record: MutableMapping[str, Any],
+    column_types: Mapping[str, str],
+) -> MutableMapping[str, Any]:
+    if not column_types:
+        return record
+
+    converted = dict(record)
+    for column, declared_type in column_types.items():
+        if column not in converted:
+            continue
+        converter = COLUMN_CONVERTERS.get(str(declared_type).lower())
+        if converter:
+            converted[column] = converter(converted[column])
+    return converted
+
+
 def _resolve_required_fields(endpoint: EndpointConfig) -> Sequence[str]:
     return tuple(ENSURE_COLUMNS_OVERRIDE.get(endpoint.name, endpoint.ensure_columns))
 
@@ -1225,7 +1310,8 @@ def _process_endpoint(
         enriched = _augment_record(record, endpoint.context_fields, context)
         required_fields = _resolve_required_fields(endpoint)
         _enrich_record_for_endpoint(endpoint.name, enriched, required_fields)
-        augmented.append(enriched)
+        converted = _apply_column_types(enriched, endpoint.column_types)
+        augmented.append(converted)
 
     aggregated[endpoint.name].extend(augmented)
 
