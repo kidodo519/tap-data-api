@@ -40,9 +40,10 @@ def main() -> None:
     api_key = _require_env("TAP_API_KEY")
     reservation_date_from = _require_env("FROM_RESERVATION_DATE")
     reservation_date_to = _require_env("TO_RESERVATION_DATE")
+    initial_cursor = os.getenv("INITIAL_CURSOR")
 
     url = f"{api_base}/hotels/{hotel_code}/reservations"
-    cursor: str | None = None
+    cursor: str | None = initial_cursor
     headers = {"X-API-Key": api_key}
     output_path = ROOT / "reservations.jsonl"
 
