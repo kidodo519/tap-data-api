@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import os
 from pathlib import Path
@@ -45,30 +46,35 @@ def main() -> None:
     url = f"{api_base}/hotels/{hotel_code}/reservations"
     cursor: str | None = initial_cursor
     headers = {"X-API-Key": api_key}
-    output_path = ROOT / "reservations.jsonl"
+    jsonl_path = ROOT / "reservations.jsonl"
+    csv_path = ROOT / "reservations.csv"
 
-    with output_path.open("w", encoding="utf-8") as outfile:
-        while True:
-            params = {
-                "from_reservation_date": reservation_date_from,
-                "to_reservation_date": reservation_date_to,
-            }
-            if cursor:
-                params["cursor"] = cursor
+    params = {
+        "from_reservation_date": reservation_date_from,
+        "to_reservation_date": reservation_date_to,
+    }
+    if cursor:
+        params["cursor"] = cursor
 
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
-            payload = response.json()
+    response = requests.get(url, headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+    payload = response.json()
 
-            for item in _extract_items(payload, preferred_key="reservations"):
-                outfile.write(json.dumps(item, ensure_ascii=False) + "\n")
+    with jsonl_path.open("w", encoding="utf-8") as jsonl_file, csv_path.open(
+        "w", encoding="utf-8", newline=""
+    ) as csv_file:
+        csv_writer: csv.DictWriter[str] | None = None
+        fieldnames: list[str] | None = None
 
-            if isinstance(payload, dict):
-                cursor = payload.get("next_cursor") or payload.get("cursor")
-            else:
-                cursor = None
-            if not cursor:
-                break
+        for item in _extract_items(payload, preferred_key="reservations"):
+            jsonl_file.write(json.dumps(item, ensure_ascii=False) + "\n")
+
+            if isinstance(item, dict):
+                if csv_writer is None:
+                    fieldnames = sorted(item.keys())
+                    csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                    csv_writer.writeheader()
+                csv_writer.writerow({key: item.get(key, "") for key in fieldnames})
 
 
 if __name__ == "__main__":
