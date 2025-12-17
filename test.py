@@ -38,6 +38,8 @@ def main() -> None:
     api_base = _require_env("API_BASE").rstrip("/")
     hotel_code = _require_env("HOTEL_CODE")
     api_key = _require_env("TAP_API_KEY")
+    reservation_date_from = _require_env("FROM_RESERVATION_DATE")
+    reservation_date_to = _require_env("TO_RESERVATION_DATE")
 
     url = f"{api_base}/hotels/{hotel_code}/reservations"
     cursor: str | None = None
@@ -46,7 +48,13 @@ def main() -> None:
 
     with output_path.open("w", encoding="utf-8") as outfile:
         while True:
-            params = {"cursor": cursor} if cursor else None
+            params = {
+                "from_reservation_date": reservation_date_from,
+                "to_reservation_date": reservation_date_to,
+            }
+            if cursor:
+                params["cursor"] = cursor
+
             response = requests.get(url, headers=headers, params=params, timeout=30)
             response.raise_for_status()
             payload = response.json()
