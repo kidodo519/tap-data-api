@@ -78,11 +78,14 @@ def main() -> None:
                     csv_writer.writerow({key: item.get(key, "") for key in fieldnames})
 
             if isinstance(payload, dict):
-                cursor = payload.get("next_cursor") or payload.get("cursor")
+                next_cursor = payload.get("next_cursor")
             else:
-                cursor = None
-            if not cursor:
+                next_cursor = None
+
+            if not next_cursor or next_cursor == cursor:
                 break
+
+            cursor = next_cursor
 
 
 if __name__ == "__main__":
