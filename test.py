@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 from typing import Iterable
 
 import requests
@@ -41,6 +42,8 @@ def main() -> None:
     reservation_date_from = _require_env("FROM_RESERVATION_DATE")
     reservation_date_to = _require_env("TO_RESERVATION_DATE")
     initial_cursor = os.getenv("INITIAL_CURSOR")
+    max_retries = int(os.getenv("MAX_RETRIES", "3"))
+    backoff_seconds = float(os.getenv("BACKOFF_SECONDS", "1.0"))
 
     url = f"{api_base}/hotels/{hotel_code}/reservations"
     cursor: str | None = initial_cursor
@@ -56,8 +59,13 @@ def main() -> None:
             if cursor:
                 params["cursor"] = cursor
 
-            response = requests.get(url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
+            for attempt in range(max_retries):
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                if response.status_code in (502, 503, 504) and attempt < max_retries - 1:
+                    time.sleep(backoff_seconds * (2**attempt))
+                    continue
+                response.raise_for_status()
+                break
             payload = response.json()
 
             for item in _extract_items(payload, preferred_key="reservations"):
