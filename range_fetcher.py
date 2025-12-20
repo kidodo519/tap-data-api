@@ -286,6 +286,23 @@ def extract_reservation_id(entry: Dict[str, Any]) -> str | None:
     return None
 
 
+def normalize_date_value(value: Any) -> str | None:
+    """Convert datetime-like values to YYYY-MM-DD for query parameters."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+        return parsed.date().isoformat()
+    return None
+
+
 def fetch_primary_records(
     api: ApiClient,
     range_name: str,
@@ -338,6 +355,8 @@ def fetch_child_records(
     settings: Settings,
     data_key: str,
     path_template: str,
+    default_from: date,
+    default_to: date,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -346,12 +365,20 @@ def fetch_child_records(
         if not reservation_id:
             continue
         params: MutableMapping[str, Any] = {}
-        for key, fallback in (
-            ("from_reservation_date", entry.get("check_in_date") or entry.get("from_reservation_date")),
-            ("to_reservation_date", entry.get("check_out_date") or entry.get("to_reservation_date")),
-        ):
-            if fallback:
-                params[key] = fallback
+        date_from = normalize_date_value(
+            entry.get("check_in_date")
+            or entry.get("from_reservation_date")
+            or default_from
+        )
+        date_to = normalize_date_value(
+            entry.get("check_out_date")
+            or entry.get("to_reservation_date")
+            or default_to
+        )
+        if date_from:
+            params["from_reservation_date"] = date_from
+        if date_to:
+            params["to_reservation_date"] = date_to
         path = path_template.format(hotel_id=api.hotel_code, reservation_id=reservation_id)
         try:
             payload = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
@@ -456,6 +483,8 @@ def main() -> None:
             settings,
             data_key="slip_reservations",
             path_template="/hotels/{hotel_id}/reservations/{reservation_id}/slip-reservations",
+            default_from=start,
+            default_to=end,
         )
         revenue = fetch_child_records(
             api_client,
@@ -463,6 +492,8 @@ def main() -> None:
             settings,
             data_key="revenue_info",
             path_template="/hotels/{hotel_id}/reservations/{reservation_id}/revenue",
+            default_from=start,
+            default_to=end,
         )
         meal_reservations = fetch_child_records(
             api_client,
@@ -470,6 +501,8 @@ def main() -> None:
             settings,
             data_key="meal_reservation",
             path_template="/hotels/{hotel_id}/reservations/{reservation_id}/meal-reservations",
+            default_from=start,
+            default_to=end,
         )
         rooms = fetch_child_records(
             api_client,
@@ -477,6 +510,8 @@ def main() -> None:
             settings,
             data_key="room_reservation",
             path_template="/hotels/{hotel_id}/reservations/{reservation_id}/rooms",
+            default_from=start,
+            default_to=end,
         )
         reservations_merged = merge_records(base_records, meal_reservations)
         sales_merged = merge_records(sales, revenue)
