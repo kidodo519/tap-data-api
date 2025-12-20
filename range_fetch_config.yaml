@@ -1,0 +1,39 @@
+ranges:
+  history:
+    enabled: true
+    use_manual_dates: false
+    manual_from: null
+    manual_to: null
+  onhand:
+    enabled: true
+    use_manual_dates: false
+    manual_from: null
+    manual_to: null
+
+defaults:
+  history_days_ago: 2
+  onhand_start_offset_days: -1
+  onhand_end_offset_days: 178
+
+output:
+  formats: ["csv"]
+  destination: local # local or s3
+  local_directory: data/range_exports
+  s3:
+    bucket: ""
+    prefix: ""
+  filename_prefix: tap_range
+
+fetching:
+  timeout_seconds: 30
+  chunking:
+    enabled: true
+    days_per_request: 30
+    resume_after_timeout: true
+    retry_days_per_request: 7
+  cursor_loop_guard: true
+
+columns:
+  reservations: []
+  sales: []
+  rooms: []
