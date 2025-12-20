@@ -20,6 +20,57 @@ ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG_PATH = ROOT / "range_fetch_config.yaml"
 DEFAULT_OUTPUT_DIR = ROOT / "data" / "range_exports"
 DEFAULT_TIMEOUT = 30
+DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
+    "reservations": (
+        "id",
+        "reservation_number",
+        "check_in_date",
+        "check_out_date",
+        "created",
+        "created_at",
+        "control_status",
+        "last_modified",
+        "person_count",
+        "person_count_adult",
+        "person_count_child_a",
+        "person_count_child_b",
+        "person_count_child_c",
+        "person_count_child_d",
+        "price",
+        "reservationRoutes",
+        "sales_package_name",
+        "meal_name",
+        "marketing_area",
+        "agent_reservation_number",
+        "name",
+        "address",
+        "phone_no",
+        "gender",
+        "birthday",
+        "email",
+        "customer_number",
+    ),
+    "sales": (
+        "reservation_number",
+        "date",
+        "item",
+        "total_price",
+        "tax_include",
+        "quantity",
+        "number_of_use",
+        "sales_amount",
+        "meal_amount",
+        "total",
+        "request_url",
+    ),
+    "rooms": (
+        "reservation_number",
+        "date",
+        "room_number",
+        "room_type_code",
+        "request_url",
+    ),
+}
 
 
 @dataclass
@@ -188,9 +239,9 @@ def load_settings(path: Path) -> Settings:
             ),
         ),
         columns=ColumnSettings(
-            reservations=tuple(columns_raw.get("reservations", ())),
-            sales=tuple(columns_raw.get("sales", ())),
-            rooms=tuple(columns_raw.get("rooms", ())),
+            reservations=tuple(columns_raw.get("reservations") or DEFAULT_COLUMNS["reservations"]),
+            sales=tuple(columns_raw.get("sales") or DEFAULT_COLUMNS["sales"]),
+            rooms=tuple(columns_raw.get("rooms") or DEFAULT_COLUMNS["rooms"]),
         ),
     )
     return settings
@@ -318,6 +369,19 @@ def fetch_child_records(
     return rows
 
 
+def merge_records(*collections: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for collection in collections:
+        for row in collection:
+            fp = record_fingerprint(row)
+            if fp in seen:
+                continue
+            seen.add(fp)
+            merged.append(row)
+    return merged
+
+
 def export_records(
     name: str,
     records: list[dict[str, Any]],
@@ -393,6 +457,20 @@ def main() -> None:
             data_key="slip_reservations",
             path_template="/hotels/{hotel_id}/reservations/{reservation_id}/slip-reservations",
         )
+        revenue = fetch_child_records(
+            api_client,
+            base_records,
+            settings,
+            data_key="revenue_info",
+            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/revenue",
+        )
+        meal_reservations = fetch_child_records(
+            api_client,
+            base_records,
+            settings,
+            data_key="meal_reservation",
+            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/meal-reservations",
+        )
         rooms = fetch_child_records(
             api_client,
             base_records,
@@ -400,9 +478,12 @@ def main() -> None:
             data_key="room_reservation",
             path_template="/hotels/{hotel_id}/reservations/{reservation_id}/rooms",
         )
-        datasets[f"{range_name}_reservations"] = [select_columns(row, settings.columns.reservations) for row in base_records]
-        datasets[f"{range_name}_sales"] = [select_columns(row, settings.columns.sales) for row in sales]
-        datasets[f"{range_name}_rooms"] = [select_columns(row, settings.columns.rooms) for row in rooms]
+        reservations_merged = merge_records(base_records, meal_reservations)
+        sales_merged = merge_records(sales, revenue)
+        rooms_merged = merge_records(rooms)
+        datasets[f"{range_name}_reservations"] = [select_columns(row, settings.columns.reservations) for row in reservations_merged]
+        datasets[f"{range_name}_sales"] = [select_columns(row, settings.columns.sales) for row in sales_merged]
+        datasets[f"{range_name}_rooms"] = [select_columns(row, settings.columns.rooms) for row in rooms_merged]
 
     for name, records in datasets.items():
         if not records:

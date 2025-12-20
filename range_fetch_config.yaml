@@ -34,6 +34,49 @@ fetching:
   cursor_loop_guard: true
 
 columns:
-  reservations: []
-  sales: []
-  rooms: []
+  reservations:
+    - id
+    - reservation_number
+    - check_in_date
+    - check_out_date
+    - created
+    - created_at
+    - control_status
+    - last_modified
+    - person_count
+    - person_count_adult
+    - person_count_child_a
+    - person_count_child_b
+    - person_count_child_c
+    - person_count_child_d
+    - price
+    - reservationRoutes
+    - sales_package_name
+    - meal_name
+    - marketing_area
+    - agent_reservation_number
+    - name
+    - address
+    - phone_no
+    - gender
+    - birthday
+    - email
+    - customer_number
+  sales:
+    - reservation_number
+    - date
+    - item
+    - total_price
+    - tax_include
+    - quantity
+    - number_of_use
+    - sales_amount
+    - meal_amount
+    - total
+    - request_url
+  rooms:
+    - reservation_number
+    - date
+    - room_number
+    - room_type_code
+    - request_url

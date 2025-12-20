@@ -90,7 +90,7 @@ python main.py
 引き続き取得して 6 種類のファイル (history/onhand × reservations/sales/rooms) を生成します。
 
 - 出力形式は `csv` / `json` を `range_fetch_config.yaml` の `output.formats` で選択できます。
-- `columns` セクションでデータセットごとの出力カラムを絞り込めます。
+- `columns` セクションでデータセットごとの出力カラムを絞り込めます (デフォルトは `main.py`/`config.yaml` と同等の列)。
 - `ranges.history/onhand` で日付範囲の ON/OFF と手動入力の有無を指定できます。
   - 自動取得時は history: 「今日から 2 日前の単日」、onhand: 「昨日から 178 日後」になります。
   - 日付が広い場合は `fetching.chunking` の設定に従って範囲を分割し、タイムアウト時は直前までの
@@ -98,6 +98,7 @@ python main.py
   - 同一カーソルが再登場した場合はループを検出して処理を終了します。
 - 取得したファイルはローカル (`data/range_exports` がデフォルト) か S3 への転送を選択できます。
   - `destination: s3` にして `output.s3.bucket`/`prefix` を設定すると自動でアップロードします。
+- `reservations` には予約本体に加え食事予約 (`meal-reservations`) の結果を結合し、`sales` は売上 (`slip-reservations`) と収益 (`revenue`) をまとめて 1 ファイルにします。`rooms` は部屋関連 (`rooms`) をマージします。
 
 設定例 (抜粋):
 ```yaml
