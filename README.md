@@ -99,6 +99,7 @@ python main.py
 - 取得したファイルはローカル (`data/range_exports` がデフォルト) か S3 への転送を選択できます。
   - `destination: s3` にして `output.s3.bucket`/`prefix` を設定すると自動でアップロードします。
 - `reservations` には予約本体に加え食事予約 (`meal-reservations`) の結果を結合し、`sales` は売上 (`slip-reservations`) と収益 (`revenue`) をまとめて 1 ファイルにします。`rooms` は部屋関連 (`rooms`) をマージします。
+- 子エンドポイントが HTTP エラーを返した場合はスキップのみ行い、他の予約の処理は継続します（エラー文は出力しません）。
 
 設定例 (抜粋):
 ```yaml
