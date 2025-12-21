@@ -84,6 +84,54 @@ python main.py
 といった型ラベルに応じて取得データを軽量な共通関数で整形します。カラム単位での変換処理を
 `config.yaml` 側へ寄せられるため、`main.py` の変更を抑えつつ型整形を行えます。
 
+### 滞在履歴 (history) / 予約オンハンド (onhand) をまとめて取得する
+`range_fetcher.py` は `main.py` を残したまま新規作成した最小構成のスクリプトで、`stays` (履歴) と
+`reservations` (オンハンド) をそれぞれ別日付範囲で取得し、ID を元に `sales` と `rooms` を
+引き続き取得して 6 種類のファイル (history/onhand × reservations/sales/rooms) を生成します。
+
+- 出力形式は `csv` / `json` を `range_fetch_config.yaml` の `output.formats` で選択できます。
+- `columns` セクションでデータセットごとの出力カラムを絞り込めます (デフォルトは `main.py`/`config.yaml` と同等の列)。
+- `ranges.history/onhand` で日付範囲の ON/OFF と手動入力の有無を指定できます。
+  - 自動取得時は history: 「今日から 2 日前の単日」、onhand: 「昨日から 178 日後」になります。
+  - 日付が広い場合は `fetching.chunking` の設定に従って範囲を分割し、タイムアウト時は直前までの
+    日付から自動で再開します (`retry_days_per_request` で再リクエスト幅を指定)。
+  - 同一カーソルが再登場した場合はループを検出して処理を終了します。
+- 取得したファイルはローカル (`data/range_exports` がデフォルト) か S3 への転送を選択できます。
+  - `destination: s3` にして `output.s3.bucket`/`prefix` を設定すると自動でアップロードします。
+- `reservations` には予約本体に加え食事予約 (`meal-reservations`) の結果を結合し、`sales` は売上 (`slip-reservations`) と収益 (`revenue`) をまとめて 1 ファイルにします。`rooms` は部屋関連 (`rooms`) をマージします。
+- 子エンドポイントが HTTP エラーを返した場合はスキップのみ行い、他の予約の処理は継続します（エラー文は出力しません）。
+
+設定例 (抜粋):
+```yaml
+ranges:
+  history:
+    enabled: true
+    use_manual_dates: false
+  onhand:
+    enabled: true
+    use_manual_dates: true
+    manual_from: "2025-02-01"
+    manual_to: "2025-02-15"
+output:
+  formats: ["csv", "json"]
+  destination: local
+columns:
+  reservations: ["reservation_number", "check_in_date", "control_status"]
+  sales: ["reservation_id", "date", "total_price"]
+  rooms: ["reservation_id", "room_number", "room_type_code"]
+fetching:
+  chunking:
+    enabled: true
+    days_per_request: 14
+    resume_after_timeout: true
+    retry_days_per_request: 7
+```
+
+実行:
+```bash
+python range_fetcher.py --config range_fetch_config.yaml
+```
+
 ### 認証について
 `API/swagger.json` では `securitySchemes` として `AccessToken` が定義されており、
 ヘッダー `X-API-Key` を使う API キー認証のみが記載されています。ベーシック認証や
