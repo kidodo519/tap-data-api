@@ -1,0 +1,83 @@
+ranges:
+  history:
+    enabled: true
+    use_manual_dates: false
+    manual_from: null
+    manual_to: null
+  onhand:
+    enabled: true
+    use_manual_dates: false
+    manual_from: null
+    manual_to: null
+
+defaults:
+  history_days_ago: 2
+  onhand_start_offset_days: -1
+  onhand_end_offset_days: 178
+
+output:
+  formats: ["csv"]
+  destination: local # local or s3
+  local_directory: data/range_exports
+  s3:
+    bucket: ""
+    prefix: ""
+  filename_prefix: tap_range
+
+fetching:
+  timeout_seconds: 30
+  chunking:
+    enabled: true
+    days_per_request: 30
+    resume_after_timeout: true
+    retry_days_per_request: 7
+  cursor_loop_guard: true
+
+columns:
+  reservations:
+    - id
+    - reservation_number
+    - check_in_date
+    - check_out_date
+    - created
+    - created_at
+    - control_status
+    - last_modified
+    - person_count
+    - person_count_adult
+    - person_count_child_a
+    - person_count_child_b
+    - person_count_child_c
+    - person_count_child_d
+    - person_count_child_e
+    - price
+    - reservationRoutes
+    - sales_package_name
+    - meal_name
+    - marketing_area
+    - agent_reservation_number
+    - name
+    - address
+    - phone_no
+    - gender
+    - birthday
+    - email
+    - customer_number
+  sales:
+    - reservation_number
+    - date
+    - item
+    - total_price
+    - tax_include
+    - quantity
+    - number_of_use
+    - sales_amount
+    - meal_amount
+    - total
+    - request_url
+  rooms:
+    - reservation_number
+    - date
+    - room_number
+    - room_type_code
+    - request_url
