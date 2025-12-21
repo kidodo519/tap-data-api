@@ -386,6 +386,9 @@ def fetch_child_records(
             if not settings.fetching.chunking.resume_after_timeout:
                 raise
             payload = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
+        except requests.HTTPError as exc:
+            print(f"[warn] skip child endpoint due to HTTP error ({exc.response.status_code}): {path} params={params}")
+            continue
         for item in payload:
             item.setdefault("reservation_id", reservation_id)
             fp = record_fingerprint(item)
