@@ -49,6 +49,7 @@ columns:
     - person_count_child_b
     - person_count_child_c
     - person_count_child_d
+    - person_count_child_e
     - price
     - reservationRoutes
     - sales_package_name

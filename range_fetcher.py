@@ -36,6 +36,7 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "person_count_child_b",
         "person_count_child_c",
         "person_count_child_d",
+        "person_count_child_e",
         "price",
         "reservationRoutes",
         "sales_package_name",
@@ -280,7 +281,14 @@ def record_fingerprint(row: Dict[str, Any]) -> str:
 
 
 def extract_reservation_id(entry: Dict[str, Any]) -> str | None:
-    for key in ("reservation_id", "reservationId", "reservation_number", "id", "id "):
+    for key in ("id", "id ", "reservation_id", "reservationId"):
+        if key in entry and entry.get(key):
+            return str(entry[key]).strip()
+    return None
+
+
+def extract_reservation_number(entry: Dict[str, Any]) -> str | None:
+    for key in ("reservation_number",):
         if key in entry and entry.get(key):
             return str(entry[key]).strip()
     return None
@@ -290,10 +298,41 @@ def normalize_reservation_identity(row: MutableMapping[str, Any]) -> None:
     """Ensure reservation id/number fields are populated consistently."""
     raw_id = extract_reservation_id(row)
     if raw_id:
-        row.setdefault("reservation_id", raw_id)
+        row["reservation_id"] = raw_id
         row.setdefault("id", raw_id)
     if "id " in row and row.get("id "):
         row.setdefault("id", row["id "])
+        row.setdefault("reservation_id", row["id "])
+    reservation_number = extract_reservation_number(row)
+    if reservation_number:
+        row["reservation_number"] = reservation_number
+
+
+def normalize_person_counts(row: MutableMapping[str, Any]) -> None:
+    counts = row.get("person_count")
+    if not isinstance(counts, list):
+        return
+    # Ensure numeric conversion
+    values: list[int] = []
+    for idx, val in enumerate(counts):
+        try:
+            values.append(int(val))
+        except (TypeError, ValueError):
+            values.append(0)
+    # Pad to 6 entries (adult + child_a-e)
+    while len(values) < 6:
+        values.append(0)
+    labels = [
+        "person_count_adult",
+        "person_count_child_a",
+        "person_count_child_b",
+        "person_count_child_c",
+        "person_count_child_d",
+        "person_count_child_e",
+    ]
+    for label, value in zip(labels, values):
+        row[label] = value
+    row["person_count"] = sum(values)
 
 
 def normalize_date_value(value: Any) -> str | None:
@@ -343,6 +382,7 @@ def fetch_primary_records(
             raise
         for row in rows:
             normalize_reservation_identity(row)
+            normalize_person_counts(row)
             if "date_range_type" not in row:
                 row["date_range_type"] = range_name
             fp = record_fingerprint(row)
@@ -395,6 +435,7 @@ def fetch_child_records(
             continue
         for item in payload:
             item.setdefault("reservation_id", reservation_id)
+            normalize_person_counts(item)
             normalize_reservation_identity(item)
             fp = record_fingerprint(item)
             if fp in seen:
