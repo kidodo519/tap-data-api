@@ -286,6 +286,16 @@ def extract_reservation_id(entry: Dict[str, Any]) -> str | None:
     return None
 
 
+def normalize_reservation_identity(row: MutableMapping[str, Any]) -> None:
+    """Ensure reservation id/number fields are populated consistently."""
+    raw_id = extract_reservation_id(row)
+    if raw_id:
+        row.setdefault("reservation_id", raw_id)
+        row.setdefault("id", raw_id)
+    if "id " in row and row.get("id "):
+        row.setdefault("id", row["id "])
+
+
 def normalize_date_value(value: Any) -> str | None:
     """Convert datetime-like values to YYYY-MM-DD for query parameters."""
     if value is None:
@@ -330,12 +340,9 @@ def fetch_primary_records(
         try:
             rows = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
         except requests.Timeout:
-            if not (chunk_settings.enabled and chunk_settings.resume_after_timeout):
-                raise
-            cursor_start = last_completed + timedelta(days=1)
-            window = retry_size
-            continue
+            raise
         for row in rows:
+            normalize_reservation_identity(row)
             if "date_range_type" not in row:
                 row["date_range_type"] = range_name
             fp = record_fingerprint(row)
@@ -383,13 +390,12 @@ def fetch_child_records(
         try:
             payload = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
         except requests.Timeout:
-            if not settings.fetching.chunking.resume_after_timeout:
-                raise
-            payload = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
-        except requests.RequestException as exc:
+            continue
+        except requests.RequestException:
             continue
         for item in payload:
             item.setdefault("reservation_id", reservation_id)
+            normalize_reservation_identity(item)
             fp = record_fingerprint(item)
             if fp in seen:
                 continue
@@ -523,8 +529,6 @@ def main() -> None:
         datasets[f"{range_name}_rooms"] = [select_columns(row, settings.columns.rooms) for row in rooms_merged]
 
     for name, records in datasets.items():
-        if not records:
-            continue
         column_selection: Sequence[str] = ()
         if name.endswith("reservations"):
             column_selection = settings.columns.reservations
@@ -532,6 +536,8 @@ def main() -> None:
             column_selection = settings.columns.sales
         elif name.endswith("rooms"):
             column_selection = settings.columns.rooms
+        if not records and not column_selection:
+            continue
         produced = export_records(name, records, columns=column_selection, output=settings.output)
         for path in produced:
             print(f"[info] wrote {path}")
