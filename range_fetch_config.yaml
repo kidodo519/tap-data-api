@@ -36,6 +36,7 @@ fetching:
 columns:
   reservations:
     - id
+    - reservation_id
     - reservation_number
     - check_in_date
     - check_out_date
@@ -64,6 +65,7 @@ columns:
     - email
     - customer_number
   sales:
+    - reservation_id
     - reservation_number
     - date
     - item
@@ -76,6 +78,7 @@ columns:
     - total
     - request_url
   rooms:
+    - reservation_id
     - reservation_number
     - date
     - room_number

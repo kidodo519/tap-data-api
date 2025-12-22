@@ -9,7 +9,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterable, MutableMapping, Sequence
+from typing import Any, Dict, Iterable, Mapping, MutableMapping, Sequence
 
 import boto3
 import requests
@@ -52,6 +52,7 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "customer_number",
     ),
     "sales": (
+        "reservation_id",
         "reservation_number",
         "date",
         "item",
@@ -65,6 +66,7 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "request_url",
     ),
     "rooms": (
+        "reservation_id",
         "reservation_number",
         "date",
         "room_number",
@@ -335,6 +337,83 @@ def normalize_person_counts(row: MutableMapping[str, Any]) -> None:
     row["person_count"] = sum(values)
 
 
+def normalize_guest_info(row: MutableMapping[str, Any]) -> None:
+    guest = None
+    for candidate in (row.get("main_guest"), row.get("reserved_by"), row.get("guest")):
+        if isinstance(candidate, Mapping):
+            guest = candidate
+            break
+    if not isinstance(guest, Mapping):
+        return
+    person = guest.get("person") if isinstance(guest.get("person"), Mapping) else {}
+    address = person.get("address") if isinstance(person.get("address"), Mapping) else {}
+
+    def _first_non_empty(*values: Any) -> Any:
+        for val in values:
+            if val not in (None, "", []):
+                return val
+        return None
+
+    # Basic identity fields
+    name = _first_non_empty(row.get("name"), person.get("name"), person.get("kana_name"))
+    if name:
+        row["name"] = name
+    phone = _first_non_empty(
+        row.get("phone_no"),
+        person.get("phone_no"),
+        person.get("phone_no_mobile"),
+        person.get("phone_no_other"),
+    )
+    if phone:
+        row["phone_no"] = phone
+    gender = _first_non_empty(row.get("gender"), person.get("gender"))
+    if gender:
+        row["gender"] = gender
+    birthday = _first_non_empty(row.get("birthday"), person.get("birthday"))
+    if birthday:
+        row["birthday"] = birthday
+    email = _first_non_empty(row.get("email"), person.get("email"), person.get("email_sub"))
+    if email:
+        row["email"] = email
+
+    # Address flatten
+    address_line = ""
+    if isinstance(address.get("address_line"), Sequence):
+        address_line = " ".join([str(a) for a in address.get("address_line") if a not in (None, "")])
+    parts = [
+        address.get("postal_code"),
+        address.get("prefecture_code"),
+        address.get("city"),
+        address_line,
+    ]
+    address_str = " ".join([str(p) for p in parts if p not in (None, "", [])]).strip()
+    if address_str and not row.get("address"):
+        row["address"] = address_str
+
+    customer_number = _first_non_empty(row.get("customer_number"), guest.get("customer_number"))
+    if customer_number:
+        row["customer_number"] = customer_number
+
+
+def normalize_sales_item(row: MutableMapping[str, Any]) -> None:
+    item = row.get("item")
+    if isinstance(item, Mapping):
+        name = item.get("name") or item.get("short_name") or item.get("code")
+        if name:
+            row["item"] = name
+        code = item.get("code")
+        if code and "item_code" not in row:
+            row["item_code"] = code
+
+
+def normalize_room_fields(row: MutableMapping[str, Any]) -> None:
+    stay_period = row.get("stay_period")
+    if isinstance(stay_period, Mapping):
+        date_val = stay_period.get("arrival_date") or stay_period.get("departure_date")
+        if date_val and not row.get("date"):
+            row["date"] = date_val
+
+
 def normalize_date_value(value: Any) -> str | None:
     """Convert datetime-like values to YYYY-MM-DD for query parameters."""
     if value is None:
@@ -383,6 +462,7 @@ def fetch_primary_records(
         for row in rows:
             normalize_reservation_identity(row)
             normalize_person_counts(row)
+            normalize_guest_info(row)
             if "date_range_type" not in row:
                 row["date_range_type"] = range_name
             fp = record_fingerprint(row)
@@ -437,6 +517,11 @@ def fetch_child_records(
             item.setdefault("reservation_id", reservation_id)
             normalize_person_counts(item)
             normalize_reservation_identity(item)
+            normalize_guest_info(item)
+            if data_key == "slip_reservations" or data_key == "revenue_info":
+                normalize_sales_item(item)
+            if data_key == "room_reservation":
+                normalize_room_fields(item)
             fp = record_fingerprint(item)
             if fp in seen:
                 continue
