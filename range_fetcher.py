@@ -604,55 +604,71 @@ def main() -> None:
     ranges = {"history": resolve_date_range("history", settings, today), "onhand": resolve_date_range("onhand", settings, today)}
 
     datasets: dict[str, list[dict[str, Any]]] = {}
+    dataset_fingerprints: dict[str, set[str]] = {}
 
     for range_name, resolved in ranges.items():
         if not resolved:
             continue
         start, end = resolved
-        print(f"[info] fetching {range_name}: {start.isoformat()} -> {end.isoformat()}")
-        base_records = fetch_primary_records(api_client, range_name, start, end, settings)
-        sales = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="slip_reservations",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/slip-reservations",
-            default_from=start,
-            default_to=end,
-        )
-        revenue = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="revenue_info",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/revenue",
-            default_from=start,
-            default_to=end,
-        )
-        meal_reservations = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="meal_reservation",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/meal-reservations",
-            default_from=start,
-            default_to=end,
-        )
-        rooms = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="room_reservation",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/rooms",
-            default_from=start,
-            default_to=end,
-        )
-        reservations_merged = merge_records(base_records, meal_reservations)
-        sales_merged = merge_records(sales, revenue)
-        rooms_merged = merge_records(rooms)
-        datasets[f"{range_name}_reservations"] = [select_columns(row, settings.columns.reservations) for row in reservations_merged]
-        datasets[f"{range_name}_sales"] = [select_columns(row, settings.columns.sales) for row in sales_merged]
-        datasets[f"{range_name}_rooms"] = [select_columns(row, settings.columns.rooms) for row in rooms_merged]
+        print(f"[info] fetching {range_name} by day: {start.isoformat()} -> {end.isoformat()}")
+        current_day = start
+        while current_day <= end:
+            print(f"[info]  - {current_day.isoformat()}")
+            base_records = fetch_primary_records(api_client, range_name, current_day, current_day, settings)
+            sales = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="slip_reservations",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/slip-reservations",
+                default_from=current_day,
+                default_to=current_day,
+            )
+            revenue = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="revenue_info",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/revenue",
+                default_from=current_day,
+                default_to=current_day,
+            )
+            meal_reservations = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="meal_reservation",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/meal-reservations",
+                default_from=current_day,
+                default_to=current_day,
+            )
+            rooms = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="room_reservation",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/rooms",
+                default_from=current_day,
+                default_to=current_day,
+            )
+            reservations_merged = merge_records(base_records, meal_reservations)
+            sales_merged = merge_records(sales, revenue)
+            rooms_merged = merge_records(rooms)
+            dataset_entries = {
+                f"{range_name}_reservations": (reservations_merged, settings.columns.reservations),
+                f"{range_name}_sales": (sales_merged, settings.columns.sales),
+                f"{range_name}_rooms": (rooms_merged, settings.columns.rooms),
+            }
+            for dataset_name, (records, columns) in dataset_entries.items():
+                datasets.setdefault(dataset_name, [])
+                dataset_fingerprints.setdefault(dataset_name, set())
+                for row in records:
+                    fp = record_fingerprint(row)
+                    if fp in dataset_fingerprints[dataset_name]:
+                        continue
+                    dataset_fingerprints[dataset_name].add(fp)
+                    datasets[dataset_name].append(select_columns(row, columns))
+            current_day += timedelta(days=1)
 
     for name, records in datasets.items():
         column_selection: Sequence[str] = ()
