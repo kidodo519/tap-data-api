@@ -448,6 +448,8 @@ def fetch_primary_records(
     window = chunk_size
     cursor_start = date_from
     last_completed = date_from - timedelta(days=1)
+    error_retries: dict[date, int] = {}
+    max_retry_attempts = 3
 
     while cursor_start <= date_to:
         cursor_end = min(cursor_start + timedelta(days=window - 1), date_to)
@@ -458,6 +460,29 @@ def fetch_primary_records(
         try:
             rows = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
         except requests.Timeout:
+            if chunk_settings.enabled and chunk_settings.resume_after_timeout and window > 1:
+                window = max(1, min(window // 2 or 1, retry_size, window - 1))
+                print(f"[warn] timeout from {cursor_start} to {cursor_end}, retrying with window={window} days")
+                continue
+            retry_count = error_retries.get(cursor_start, 0) + 1
+            if retry_count > max_retry_attempts:
+                raise
+            error_retries[cursor_start] = retry_count
+            print(f"[warn] timeout from {cursor_start} to {cursor_end}, retry {retry_count}/{max_retry_attempts}")
+            continue
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code in (502, 503, 504) and chunk_settings.enabled:
+                if window > 1:
+                    window = max(1, min(window // 2 or 1, retry_size, window - 1))
+                    print(f"[warn] {status_code} from {cursor_start} to {cursor_end}, retrying with window={window} days")
+                    continue
+                retry_count = error_retries.get(cursor_start, 0) + 1
+                if retry_count > max_retry_attempts:
+                    raise
+                error_retries[cursor_start] = retry_count
+                print(f"[warn] {status_code} from {cursor_start} to {cursor_end}, retry {retry_count}/{max_retry_attempts}")
+                continue
             raise
         for row in rows:
             normalize_reservation_identity(row)
@@ -591,6 +616,8 @@ def upload_to_s3(files: list[Path], output: OutputSettings) -> None:
 def main() -> None:
     args = parse_args()
     load_dotenv()
+    start_time = datetime.now()
+    print(f"[info] start: {start_time.isoformat()}")
     settings = load_settings(args.config)
 
     api_base = os.environ.get("API_BASE")
@@ -683,6 +710,10 @@ def main() -> None:
         produced = export_records(name, records, columns=column_selection, output=settings.output)
         for path in produced:
             print(f"[info] wrote {path}")
+
+    end_time = datetime.now()
+    elapsed = end_time - start_time
+    print(f"[info] end: {end_time.isoformat()} (elapsed {elapsed})")
 
 
 if __name__ == "__main__":
