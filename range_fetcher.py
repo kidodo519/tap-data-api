@@ -448,6 +448,8 @@ def fetch_primary_records(
     window = chunk_size
     cursor_start = date_from
     last_completed = date_from - timedelta(days=1)
+    error_retries: dict[date, int] = {}
+    max_retry_attempts = 3
 
     while cursor_start <= date_to:
         cursor_end = min(cursor_start + timedelta(days=window - 1), date_to)
@@ -458,6 +460,29 @@ def fetch_primary_records(
         try:
             rows = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
         except requests.Timeout:
+            if chunk_settings.enabled and chunk_settings.resume_after_timeout and window > 1:
+                window = max(1, min(window // 2 or 1, retry_size, window - 1))
+                print(f"[warn] timeout from {cursor_start} to {cursor_end}, retrying with window={window} days")
+                continue
+            retry_count = error_retries.get(cursor_start, 0) + 1
+            if retry_count > max_retry_attempts:
+                raise
+            error_retries[cursor_start] = retry_count
+            print(f"[warn] timeout from {cursor_start} to {cursor_end}, retry {retry_count}/{max_retry_attempts}")
+            continue
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code in (502, 503, 504) and chunk_settings.enabled:
+                if window > 1:
+                    window = max(1, min(window // 2 or 1, retry_size, window - 1))
+                    print(f"[warn] {status_code} from {cursor_start} to {cursor_end}, retrying with window={window} days")
+                    continue
+                retry_count = error_retries.get(cursor_start, 0) + 1
+                if retry_count > max_retry_attempts:
+                    raise
+                error_retries[cursor_start] = retry_count
+                print(f"[warn] {status_code} from {cursor_start} to {cursor_end}, retry {retry_count}/{max_retry_attempts}")
+                continue
             raise
         for row in rows:
             normalize_reservation_identity(row)
@@ -591,6 +616,8 @@ def upload_to_s3(files: list[Path], output: OutputSettings) -> None:
 def main() -> None:
     args = parse_args()
     load_dotenv()
+    start_time = datetime.now()
+    print(f"[info] start: {start_time.isoformat()}")
     settings = load_settings(args.config)
 
     api_base = os.environ.get("API_BASE")
@@ -604,55 +631,71 @@ def main() -> None:
     ranges = {"history": resolve_date_range("history", settings, today), "onhand": resolve_date_range("onhand", settings, today)}
 
     datasets: dict[str, list[dict[str, Any]]] = {}
+    dataset_fingerprints: dict[str, set[str]] = {}
 
     for range_name, resolved in ranges.items():
         if not resolved:
             continue
         start, end = resolved
-        print(f"[info] fetching {range_name}: {start.isoformat()} -> {end.isoformat()}")
-        base_records = fetch_primary_records(api_client, range_name, start, end, settings)
-        sales = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="slip_reservations",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/slip-reservations",
-            default_from=start,
-            default_to=end,
-        )
-        revenue = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="revenue_info",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/revenue",
-            default_from=start,
-            default_to=end,
-        )
-        meal_reservations = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="meal_reservation",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/meal-reservations",
-            default_from=start,
-            default_to=end,
-        )
-        rooms = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="room_reservation",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/rooms",
-            default_from=start,
-            default_to=end,
-        )
-        reservations_merged = merge_records(base_records, meal_reservations)
-        sales_merged = merge_records(sales, revenue)
-        rooms_merged = merge_records(rooms)
-        datasets[f"{range_name}_reservations"] = [select_columns(row, settings.columns.reservations) for row in reservations_merged]
-        datasets[f"{range_name}_sales"] = [select_columns(row, settings.columns.sales) for row in sales_merged]
-        datasets[f"{range_name}_rooms"] = [select_columns(row, settings.columns.rooms) for row in rooms_merged]
+        print(f"[info] fetching {range_name} by day: {start.isoformat()} -> {end.isoformat()}")
+        current_day = start
+        while current_day <= end:
+            print(f"[info]  - {current_day.isoformat()}")
+            base_records = fetch_primary_records(api_client, range_name, current_day, current_day, settings)
+            sales = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="slip_reservations",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/slip-reservations",
+                default_from=current_day,
+                default_to=current_day,
+            )
+            revenue = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="revenue_info",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/revenue",
+                default_from=current_day,
+                default_to=current_day,
+            )
+            meal_reservations = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="meal_reservation",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/meal-reservations",
+                default_from=current_day,
+                default_to=current_day,
+            )
+            rooms = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="room_reservation",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/rooms",
+                default_from=current_day,
+                default_to=current_day,
+            )
+            reservations_merged = merge_records(base_records, meal_reservations)
+            sales_merged = merge_records(sales, revenue)
+            rooms_merged = merge_records(rooms)
+            dataset_entries = {
+                f"{range_name}_reservations": (reservations_merged, settings.columns.reservations),
+                f"{range_name}_sales": (sales_merged, settings.columns.sales),
+                f"{range_name}_rooms": (rooms_merged, settings.columns.rooms),
+            }
+            for dataset_name, (records, columns) in dataset_entries.items():
+                datasets.setdefault(dataset_name, [])
+                dataset_fingerprints.setdefault(dataset_name, set())
+                for row in records:
+                    fp = record_fingerprint(row)
+                    if fp in dataset_fingerprints[dataset_name]:
+                        continue
+                    dataset_fingerprints[dataset_name].add(fp)
+                    datasets[dataset_name].append(select_columns(row, columns))
+            current_day += timedelta(days=1)
 
     for name, records in datasets.items():
         column_selection: Sequence[str] = ()
@@ -667,6 +710,10 @@ def main() -> None:
         produced = export_records(name, records, columns=column_selection, output=settings.output)
         for path in produced:
             print(f"[info] wrote {path}")
+
+    end_time = datetime.now()
+    elapsed = end_time - start_time
+    print(f"[info] end: {end_time.isoformat()} (elapsed {elapsed})")
 
 
 if __name__ == "__main__":
