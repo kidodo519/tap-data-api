@@ -19,15 +19,16 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG_PATH = ROOT / "range_fetch_config.yaml"
 DEFAULT_OUTPUT_DIR = ROOT / "data" / "range_exports"
-DEFAULT_TIMEOUT = 30
+DEFAULT_TIMEOUT = 60
 DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
     "reservations": (
         "id",
         "reservation_number",
+        "reservation_date",
+        "reservation_type",
         "check_in_date",
         "check_out_date",
         "created",
-        "created_at",
         "control_status",
         "last_modified",
         "person_count",
@@ -38,11 +39,15 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "person_count_child_d",
         "person_count_child_e",
         "price",
-        "reservationRoutes",
+        "reservationRoutes1",
+        "reservationRoutes2",
+        "reservationRoutes3",
         "sales_package_name",
         "meal_name",
         "marketing_area",
         "agent_reservation_number",
+        "facility_code",
+        "facility_name",
         "name",
         "address",
         "phone_no",
@@ -63,15 +68,19 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "sales_amount",
         "meal_amount",
         "total",
-        "request_url",
+        "facility_code",
+        "facility_name",
     ),
     "rooms": (
         "reservation_id",
         "reservation_number",
         "date",
         "room_number",
+        "room_code",
+        "room_name",
         "room_type_code",
-        "request_url",
+        "facility_code",
+        "facility_name",
     ),
 }
 
@@ -97,6 +106,15 @@ class ChunkingSettings:
     days_per_request: int
     resume_after_timeout: bool
     retry_days_per_request: int
+    max_retry_attempts: int
+
+
+@dataclass
+class IncrementalSettings:
+    enabled: bool
+    log_file: Path
+    param_from: str
+    param_to: str
 
 
 @dataclass
@@ -104,6 +122,7 @@ class FetchingSettings:
     timeout_seconds: int
     chunking: ChunkingSettings
     cursor_loop_guard: bool
+    incremental: IncrementalSettings
 
 
 @dataclass
@@ -114,6 +133,8 @@ class OutputSettings:
     s3_bucket: str | None
     s3_prefix: str | None
     filename_prefix: str
+    local_enabled: bool
+    s3_enabled: bool
 
 
 @dataclass
@@ -214,6 +235,7 @@ def load_settings(path: Path) -> Settings:
     output_raw = raw.get("output", {})
     fetching_raw = raw.get("fetching", {})
     chunking_raw = fetching_raw.get("chunking", {})
+    incremental_raw = fetching_raw.get("incremental_updates", {})
     columns_raw = raw.get("columns", {})
 
     settings = Settings(
@@ -230,6 +252,8 @@ def load_settings(path: Path) -> Settings:
             s3_bucket=output_raw.get("s3", {}).get("bucket"),
             s3_prefix=output_raw.get("s3", {}).get("prefix"),
             filename_prefix=str(output_raw.get("filename_prefix", "tap_range")),
+            local_enabled=bool(output_raw.get("local_enabled", True)),
+            s3_enabled=bool(output_raw.get("s3_enabled", False)),
         ),
         fetching=FetchingSettings(
             timeout_seconds=int(fetching_raw.get("timeout_seconds", DEFAULT_TIMEOUT)),
@@ -239,6 +263,13 @@ def load_settings(path: Path) -> Settings:
                 days_per_request=int(chunking_raw.get("days_per_request", 30)),
                 resume_after_timeout=bool(chunking_raw.get("resume_after_timeout", True)),
                 retry_days_per_request=int(chunking_raw.get("retry_days_per_request", 7)),
+                max_retry_attempts=int(chunking_raw.get("max_retry_attempts", 2)),
+            ),
+            incremental=IncrementalSettings(
+                enabled=bool(incremental_raw.get("enabled", False)),
+                log_file=ROOT / str(incremental_raw.get("log_file", "data/range_exports/update_time.log")),
+                param_from=str(incremental_raw.get("param_from", "update_time_from")),
+                param_to=str(incremental_raw.get("param_to", "update_time_to")),
             ),
         ),
         columns=ColumnSettings(
@@ -395,6 +426,96 @@ def normalize_guest_info(row: MutableMapping[str, Any]) -> None:
         row["customer_number"] = customer_number
 
 
+def normalize_control_status(row: MutableMapping[str, Any]) -> None:
+    control = row.get("control_status")
+    if isinstance(control, Mapping):
+        status = control.get("status")
+        if status:
+            row["control_status"] = status
+    elif control is not None:
+        row["control_status"] = control
+
+
+def normalize_marketing_area(row: MutableMapping[str, Any]) -> None:
+    marketing_area = row.get("marketing_area")
+    if isinstance(marketing_area, Mapping):
+        name = marketing_area.get("name")
+        if name:
+            row["marketing_area"] = name
+
+
+def normalize_facility_info(row: MutableMapping[str, Any]) -> None:
+    main_guest = row.get("main_guest")
+    if not isinstance(main_guest, Mapping):
+        return
+    remarks = main_guest.get("remarks")
+    if not isinstance(remarks, Mapping):
+        return
+    youcom = remarks.get("youcom_hotel")
+    if isinstance(youcom, Mapping):
+        code = youcom.get("id")
+        name = youcom.get("name")
+        if code and not row.get("facility_code"):
+            row["facility_code"] = code
+        if name and not row.get("facility_name"):
+            row["facility_name"] = name
+    division = remarks.get("division")
+    if isinstance(division, Mapping):
+        div_name = division.get("name")
+        if div_name and not row.get("reservation_type"):
+            row["reservation_type"] = div_name
+
+
+def enrich_reservation_from_room(row: MutableMapping[str, Any]) -> None:
+    room_entries = row.get("room_reservations")
+    first_room: Mapping[str, Any] | None = None
+    if isinstance(room_entries, list) and room_entries:
+        if isinstance(room_entries[0], Mapping):
+            first_room = room_entries[0]
+    elif isinstance(room_entries, Mapping):
+        first_room = room_entries
+    # reservationRoutes (up to 3)
+    if first_room:
+        reservation_route = first_room.get("reservation_route")
+        if isinstance(reservation_route, Mapping):
+            routes = reservation_route.get("reservationRoutes")
+            if isinstance(routes, list):
+                for idx, route in enumerate(routes[:3]):
+                    if not isinstance(route, Mapping):
+                        continue
+                    name = route.get("name") or route.get("code")
+                    if name:
+                        row[f"reservationRoutes{idx + 1}"] = name
+        # sales_package_name from pricing.sales_package.name (preferred) or price_changes fallback
+        pricing = first_room.get("pricing")
+        if isinstance(pricing, Mapping):
+            sales_package = pricing.get("sales_package")
+            if isinstance(sales_package, Mapping):
+                sp_name = sales_package.get("name")
+                if sp_name:
+                    row["sales_package_name"] = sp_name
+        if not row.get("sales_package_name"):
+            price_changes = first_room.get("price_changes")
+            if isinstance(price_changes, list) and price_changes:
+                first_change = price_changes[0]
+                if isinstance(first_change, Mapping):
+                    sp_name = first_change.get("sales_package_name")
+                    if sp_name:
+                        row["sales_package_name"] = sp_name
+        # meal_name from meal_reservations
+        meal_reservations = first_room.get("meal_reservations")
+        if isinstance(meal_reservations, list) and meal_reservations:
+            first_meal = meal_reservations[0]
+            if isinstance(first_meal, Mapping):
+                meal_name = first_meal.get("meal_name")
+                if meal_name:
+                    row["meal_name"] = meal_name
+        # agent_reservation_number
+        agent_number = first_room.get("agent_reservation_number")
+        if agent_number:
+            row["agent_reservation_number"] = agent_number
+
+
 def normalize_sales_item(row: MutableMapping[str, Any]) -> None:
     item = row.get("item")
     if isinstance(item, Mapping):
@@ -404,6 +525,8 @@ def normalize_sales_item(row: MutableMapping[str, Any]) -> None:
         code = item.get("code")
         if code and "item_code" not in row:
             row["item_code"] = code
+    elif isinstance(item, str):
+        row["item"] = item
 
 
 def normalize_room_fields(row: MutableMapping[str, Any]) -> None:
@@ -412,6 +535,14 @@ def normalize_room_fields(row: MutableMapping[str, Any]) -> None:
         date_val = stay_period.get("arrival_date") or stay_period.get("departure_date")
         if date_val and not row.get("date"):
             row["date"] = date_val
+    room_type = row.get("room_type")
+    if isinstance(room_type, Mapping):
+        code = room_type.get("code")
+        name = room_type.get("name")
+        if code and not row.get("room_code"):
+            row["room_code"] = code
+        if name and not row.get("room_name"):
+            row["room_name"] = name
 
 
 def normalize_date_value(value: Any) -> str | None:
@@ -437,6 +568,7 @@ def fetch_primary_records(
     date_from: date,
     date_to: date,
     settings: Settings,
+    incremental_window: tuple[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     path = f"/hotels/{api.hotel_code}/{'stays' if range_name == 'history' else 'reservations'}"
     data_key = "stays" if range_name == "history" else "reservations"
@@ -448,6 +580,8 @@ def fetch_primary_records(
     window = chunk_size
     cursor_start = date_from
     last_completed = date_from - timedelta(days=1)
+    error_retries: dict[date, int] = {}
+    max_retry_attempts = max(0, chunk_settings.max_retry_attempts)
 
     while cursor_start <= date_to:
         cursor_end = min(cursor_start + timedelta(days=window - 1), date_to)
@@ -455,14 +589,46 @@ def fetch_primary_records(
             "from_reservation_date": cursor_start.isoformat(),
             "to_reservation_date": cursor_end.isoformat(),
         }
+        if incremental_window:
+            params[settings.fetching.incremental.param_from] = incremental_window[0]
+            params[settings.fetching.incremental.param_to] = incremental_window[1]
         try:
             rows = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
         except requests.Timeout:
+            if chunk_settings.enabled and chunk_settings.resume_after_timeout and window > 1:
+                window = max(1, min(window // 2 or 1, retry_size, window - 1))
+                print(f"[warn] timeout from {cursor_start} to {cursor_end}, retrying with window={window} days")
+                continue
+            retry_count = error_retries.get(cursor_start, 0) + 1
+            if retry_count > max_retry_attempts:
+                raise
+            error_retries[cursor_start] = retry_count
+            print(f"[warn] timeout from {cursor_start} to {cursor_end}, retry {retry_count}/{max_retry_attempts}")
+            continue
+        except requests.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+            if status_code in (502, 503, 504) and chunk_settings.enabled:
+                if window > 1:
+                    window = max(1, min(window // 2 or 1, retry_size, window - 1))
+                    print(f"[warn] {status_code} from {cursor_start} to {cursor_end}, retrying with window={window} days")
+                    continue
+                retry_count = error_retries.get(cursor_start, 0) + 1
+                if retry_count > max_retry_attempts:
+                    raise
+                error_retries[cursor_start] = retry_count
+                print(f"[warn] {status_code} from {cursor_start} to {cursor_end}, retry {retry_count}/{max_retry_attempts}")
+                continue
             raise
         for row in rows:
             normalize_reservation_identity(row)
             normalize_person_counts(row)
             normalize_guest_info(row)
+            normalize_control_status(row)
+            normalize_marketing_area(row)
+            normalize_facility_info(row)
+            enrich_reservation_from_room(row)
+            if not row.get("reservation_date"):
+                row["reservation_date"] = cursor_start.isoformat()
             if "date_range_type" not in row:
                 row["date_range_type"] = range_name
             fp = record_fingerprint(row)
@@ -484,6 +650,7 @@ def fetch_child_records(
     path_template: str,
     default_from: date,
     default_to: date,
+    incremental_window: tuple[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -491,6 +658,9 @@ def fetch_child_records(
         reservation_id = extract_reservation_id(entry)
         if not reservation_id:
             continue
+        reservation_number = extract_reservation_number(entry)
+        facility_code = entry.get("facility_code")
+        facility_name = entry.get("facility_name")
         params: MutableMapping[str, Any] = {}
         date_from = normalize_date_value(
             entry.get("check_in_date")
@@ -506,6 +676,9 @@ def fetch_child_records(
             params["from_reservation_date"] = date_from
         if date_to:
             params["to_reservation_date"] = date_to
+        if incremental_window:
+            params[settings.fetching.incremental.param_from] = incremental_window[0]
+            params[settings.fetching.incremental.param_to] = incremental_window[1]
         path = path_template.format(hotel_id=api.hotel_code, reservation_id=reservation_id)
         try:
             payload = api.fetch(path, params, data_key=data_key, cursor_guard=settings.fetching.cursor_loop_guard)
@@ -515,12 +688,20 @@ def fetch_child_records(
             continue
         for item in payload:
             item.setdefault("reservation_id", reservation_id)
+            if reservation_number and not item.get("reservation_number"):
+                item["reservation_number"] = reservation_number
+            if facility_code and not item.get("facility_code"):
+                item["facility_code"] = facility_code
+            if facility_name and not item.get("facility_name"):
+                item["facility_name"] = facility_name
             normalize_person_counts(item)
             normalize_reservation_identity(item)
             normalize_guest_info(item)
             if data_key == "slip_reservations" or data_key == "revenue_info":
                 normalize_sales_item(item)
             if data_key == "room_reservation":
+                if item.get("room_number") in (None, ""):
+                    continue
                 normalize_room_fields(item)
             fp = record_fingerprint(item)
             if fp in seen:
@@ -548,10 +729,17 @@ def export_records(
     records: list[dict[str, Any]],
     columns: Sequence[str],
     output: OutputSettings,
+    incremental_active: bool,
+    run_date: date,
 ) -> list[Path]:
     ensure_output_dir(output.local_directory)
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    base_name = f"{output.filename_prefix}_{timestamp}_{name}"
+    run_date_str = run_date.strftime("%Y%m%d")
+    incremental_suffix = "updates" if incremental_active else "full"
+    range_part = name
+    dataset_part = name
+    if "_" in name:
+        range_part, dataset_part = name.split("_", 1)
+    base_name = f"{output.filename_prefix}_{dataset_part}_{range_part}_{incremental_suffix}_{run_date_str}"
     produced: list[Path] = []
     fieldnames: list[str]
     if columns:
@@ -559,7 +747,8 @@ def export_records(
     else:
         fieldnames = sorted({key for row in records for key in row})
 
-    if "csv" in output.formats:
+    produced_local: list[Path] = []
+    if output.local_enabled and "csv" in output.formats:
         csv_path = output.local_directory / f"{base_name}.csv"
         with csv_path.open("w", newline="", encoding="utf-8-sig") as handle:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -567,14 +756,19 @@ def export_records(
             for row in records:
                 writer.writerow(select_columns(row, fieldnames))
         produced.append(csv_path)
-    if "json" in output.formats:
+        produced_local.append(csv_path)
+    if output.local_enabled and "json" in output.formats:
         json_path = output.local_directory / f"{base_name}.json"
         with json_path.open("w", encoding="utf-8") as handle:
             json.dump([select_columns(row, fieldnames) for row in records], handle, ensure_ascii=False, indent=2)
         produced.append(json_path)
+        produced_local.append(json_path)
 
-    if output.destination.lower() == "s3":
+    if output.s3_enabled and produced:
         upload_to_s3(produced, output)
+    if not output.local_enabled:
+        produced = []
+    produced.extend(produced_local)
     return produced
 
 
@@ -591,6 +785,8 @@ def upload_to_s3(files: list[Path], output: OutputSettings) -> None:
 def main() -> None:
     args = parse_args()
     load_dotenv()
+    start_time = datetime.now()
+    print(f"[info] start: {start_time.isoformat()}")
     settings = load_settings(args.config)
 
     api_base = os.environ.get("API_BASE")
@@ -604,55 +800,87 @@ def main() -> None:
     ranges = {"history": resolve_date_range("history", settings, today), "onhand": resolve_date_range("onhand", settings, today)}
 
     datasets: dict[str, list[dict[str, Any]]] = {}
+    dataset_fingerprints: dict[str, set[str]] = {}
+
+    incremental_window: tuple[str, str] | None = None
+    if settings.fetching.incremental.enabled:
+        prev_time = None
+        if settings.fetching.incremental.log_file.exists():
+            prev_time = settings.fetching.incremental.log_file.read_text(encoding="utf-8").strip() or None
+        current_time = start_time.isoformat()
+        if prev_time:
+            incremental_window = (prev_time, current_time)
+            print(f"[info] incremental window: {incremental_window[0]} -> {incremental_window[1]}")
+        else:
+            print(f"[info] incremental window disabled for initial run; recording baseline at {current_time}")
 
     for range_name, resolved in ranges.items():
         if not resolved:
             continue
         start, end = resolved
-        print(f"[info] fetching {range_name}: {start.isoformat()} -> {end.isoformat()}")
-        base_records = fetch_primary_records(api_client, range_name, start, end, settings)
-        sales = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="slip_reservations",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/slip-reservations",
-            default_from=start,
-            default_to=end,
-        )
-        revenue = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="revenue_info",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/revenue",
-            default_from=start,
-            default_to=end,
-        )
-        meal_reservations = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="meal_reservation",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/meal-reservations",
-            default_from=start,
-            default_to=end,
-        )
-        rooms = fetch_child_records(
-            api_client,
-            base_records,
-            settings,
-            data_key="room_reservation",
-            path_template="/hotels/{hotel_id}/reservations/{reservation_id}/rooms",
-            default_from=start,
-            default_to=end,
-        )
-        reservations_merged = merge_records(base_records, meal_reservations)
-        sales_merged = merge_records(sales, revenue)
-        rooms_merged = merge_records(rooms)
-        datasets[f"{range_name}_reservations"] = [select_columns(row, settings.columns.reservations) for row in reservations_merged]
-        datasets[f"{range_name}_sales"] = [select_columns(row, settings.columns.sales) for row in sales_merged]
-        datasets[f"{range_name}_rooms"] = [select_columns(row, settings.columns.rooms) for row in rooms_merged]
+        print(f"[info] fetching {range_name} by day: {start.isoformat()} -> {end.isoformat()}")
+        current_day = start
+        while current_day <= end:
+            print(f"[info]  - {current_day.isoformat()}")
+            base_records = fetch_primary_records(api_client, range_name, current_day, current_day, settings, incremental_window=incremental_window)
+            sales = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="slip_reservations",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/slip-reservations",
+                default_from=current_day,
+                default_to=current_day,
+                incremental_window=incremental_window,
+            )
+            revenue = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="revenue_info",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/revenue",
+                default_from=current_day,
+                default_to=current_day,
+                incremental_window=incremental_window,
+            )
+            meal_reservations = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="meal_reservation",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/meal-reservations",
+                default_from=current_day,
+                default_to=current_day,
+                incremental_window=incremental_window,
+            )
+            rooms = fetch_child_records(
+                api_client,
+                base_records,
+                settings,
+                data_key="room_reservation",
+                path_template="/hotels/{hotel_id}/reservations/{reservation_id}/rooms",
+                default_from=current_day,
+                default_to=current_day,
+                incremental_window=incremental_window,
+            )
+            reservations_merged = merge_records(base_records, meal_reservations)
+            sales_merged = merge_records(sales, revenue)
+            rooms_merged = merge_records(rooms)
+            dataset_entries = {
+                f"{range_name}_reservations": (reservations_merged, settings.columns.reservations),
+                f"{range_name}_sales": (sales_merged, settings.columns.sales),
+                f"{range_name}_rooms": (rooms_merged, settings.columns.rooms),
+            }
+            for dataset_name, (records, columns) in dataset_entries.items():
+                datasets.setdefault(dataset_name, [])
+                dataset_fingerprints.setdefault(dataset_name, set())
+                for row in records:
+                    fp = record_fingerprint(row)
+                    if fp in dataset_fingerprints[dataset_name]:
+                        continue
+                    dataset_fingerprints[dataset_name].add(fp)
+                    datasets[dataset_name].append(select_columns(row, columns))
+            current_day += timedelta(days=1)
 
     for name, records in datasets.items():
         column_selection: Sequence[str] = ()
@@ -664,9 +892,23 @@ def main() -> None:
             column_selection = settings.columns.rooms
         if not records and not column_selection:
             continue
-        produced = export_records(name, records, columns=column_selection, output=settings.output)
+        produced = export_records(
+            name,
+            records,
+            columns=column_selection,
+            output=settings.output,
+            incremental_active=bool(incremental_window),
+            run_date=start_time.date(),
+        )
         for path in produced:
             print(f"[info] wrote {path}")
+
+    end_time = datetime.now()
+    elapsed = end_time - start_time
+    print(f"[info] end: {end_time.isoformat()} (elapsed {elapsed})")
+    if settings.fetching.incremental.enabled:
+        settings.fetching.incremental.log_file.parent.mkdir(parents=True, exist_ok=True)
+        settings.fetching.incremental.log_file.write_text(end_time.isoformat(), encoding="utf-8")
 
 
 if __name__ == "__main__":

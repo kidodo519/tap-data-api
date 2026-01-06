@@ -25,23 +25,30 @@ output:
   filename_prefix: tap_range
 
 fetching:
-  timeout_seconds: 30
+  timeout_seconds: 60
   chunking:
     enabled: true
     days_per_request: 30
     resume_after_timeout: true
     retry_days_per_request: 7
+    max_retry_attempts: 2
   cursor_loop_guard: true
+  incremental_updates:
+    enabled: false
+    log_file: data/range_exports/update_time.log
+    param_from: update_time_from
+    param_to: update_time_to
 
 columns:
   reservations:
     - id
     - reservation_id
     - reservation_number
+    - reservation_date
+    - reservation_type
     - check_in_date
     - check_out_date
     - created
-    - created_at
     - control_status
     - last_modified
     - person_count
@@ -52,11 +59,15 @@ columns:
     - person_count_child_d
     - person_count_child_e
     - price
-    - reservationRoutes
+    - reservationRoutes1
+    - reservationRoutes2
+    - reservationRoutes3
     - sales_package_name
     - meal_name
     - marketing_area
     - agent_reservation_number
+    - facility_code
+    - facility_name
     - name
     - address
     - phone_no
@@ -76,11 +87,15 @@ columns:
     - sales_amount
     - meal_amount
     - total
-    - request_url
+    - facility_code
+    - facility_name
   rooms:
     - reservation_id
     - reservation_number
     - date
     - room_number
+    - room_code
+    - room_name
     - room_type_code
-    - request_url
+    - facility_code
+    - facility_name
