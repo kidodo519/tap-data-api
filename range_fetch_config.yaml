@@ -44,6 +44,8 @@ columns:
     - id
     - reservation_id
     - reservation_number
+    - reservation_date
+    - reservation_type
     - check_in_date
     - check_out_date
     - created
@@ -64,6 +66,8 @@ columns:
     - meal_name
     - marketing_area
     - agent_reservation_number
+    - facility_code
+    - facility_name
     - name
     - address
     - phone_no
@@ -83,6 +87,8 @@ columns:
     - sales_amount
     - meal_amount
     - total
+    - facility_code
+    - facility_name
   rooms:
     - reservation_id
     - reservation_number
@@ -91,3 +97,5 @@ columns:
     - room_code
     - room_name
     - room_type_code
+    - facility_code
+    - facility_name

@@ -24,6 +24,8 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
     "reservations": (
         "id",
         "reservation_number",
+        "reservation_date",
+        "reservation_type",
         "check_in_date",
         "check_out_date",
         "created",
@@ -44,6 +46,8 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "meal_name",
         "marketing_area",
         "agent_reservation_number",
+        "facility_code",
+        "facility_name",
         "name",
         "address",
         "phone_no",
@@ -64,6 +68,8 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "sales_amount",
         "meal_amount",
         "total",
+        "facility_code",
+        "facility_name",
     ),
     "rooms": (
         "reservation_id",
@@ -73,6 +79,8 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "room_code",
         "room_name",
         "room_type_code",
+        "facility_code",
+        "facility_name",
     ),
 }
 
@@ -125,6 +133,8 @@ class OutputSettings:
     s3_bucket: str | None
     s3_prefix: str | None
     filename_prefix: str
+    local_enabled: bool
+    s3_enabled: bool
 
 
 @dataclass
@@ -242,6 +252,8 @@ def load_settings(path: Path) -> Settings:
             s3_bucket=output_raw.get("s3", {}).get("bucket"),
             s3_prefix=output_raw.get("s3", {}).get("prefix"),
             filename_prefix=str(output_raw.get("filename_prefix", "tap_range")),
+            local_enabled=bool(output_raw.get("local_enabled", True)),
+            s3_enabled=bool(output_raw.get("s3_enabled", False)),
         ),
         fetching=FetchingSettings(
             timeout_seconds=int(fetching_raw.get("timeout_seconds", DEFAULT_TIMEOUT)),
@@ -432,6 +444,28 @@ def normalize_marketing_area(row: MutableMapping[str, Any]) -> None:
             row["marketing_area"] = name
 
 
+def normalize_facility_info(row: MutableMapping[str, Any]) -> None:
+    main_guest = row.get("main_guest")
+    if not isinstance(main_guest, Mapping):
+        return
+    remarks = main_guest.get("remarks")
+    if not isinstance(remarks, Mapping):
+        return
+    youcom = remarks.get("youcom_hotel")
+    if isinstance(youcom, Mapping):
+        code = youcom.get("id")
+        name = youcom.get("name")
+        if code and not row.get("facility_code"):
+            row["facility_code"] = code
+        if name and not row.get("facility_name"):
+            row["facility_name"] = name
+    division = remarks.get("division")
+    if isinstance(division, Mapping):
+        div_name = division.get("name")
+        if div_name and not row.get("reservation_type"):
+            row["reservation_type"] = div_name
+
+
 def enrich_reservation_from_room(row: MutableMapping[str, Any]) -> None:
     room_entries = row.get("room_reservations")
     first_room: Mapping[str, Any] | None = None
@@ -452,14 +486,22 @@ def enrich_reservation_from_room(row: MutableMapping[str, Any]) -> None:
                     name = route.get("name") or route.get("code")
                     if name:
                         row[f"reservationRoutes{idx + 1}"] = name
-        # sales_package_name from price_changes
-        price_changes = first_room.get("price_changes")
-        if isinstance(price_changes, list) and price_changes:
-            first_change = price_changes[0]
-            if isinstance(first_change, Mapping):
-                sp_name = first_change.get("sales_package_name")
+        # sales_package_name from pricing.sales_package.name (preferred) or price_changes fallback
+        pricing = first_room.get("pricing")
+        if isinstance(pricing, Mapping):
+            sales_package = pricing.get("sales_package")
+            if isinstance(sales_package, Mapping):
+                sp_name = sales_package.get("name")
                 if sp_name:
                     row["sales_package_name"] = sp_name
+        if not row.get("sales_package_name"):
+            price_changes = first_room.get("price_changes")
+            if isinstance(price_changes, list) and price_changes:
+                first_change = price_changes[0]
+                if isinstance(first_change, Mapping):
+                    sp_name = first_change.get("sales_package_name")
+                    if sp_name:
+                        row["sales_package_name"] = sp_name
         # meal_name from meal_reservations
         meal_reservations = first_room.get("meal_reservations")
         if isinstance(meal_reservations, list) and meal_reservations:
@@ -583,7 +625,10 @@ def fetch_primary_records(
             normalize_guest_info(row)
             normalize_control_status(row)
             normalize_marketing_area(row)
+            normalize_facility_info(row)
             enrich_reservation_from_room(row)
+            if not row.get("reservation_date"):
+                row["reservation_date"] = cursor_start.isoformat()
             if "date_range_type" not in row:
                 row["date_range_type"] = range_name
             fp = record_fingerprint(row)
@@ -614,6 +659,8 @@ def fetch_child_records(
         if not reservation_id:
             continue
         reservation_number = extract_reservation_number(entry)
+        facility_code = entry.get("facility_code")
+        facility_name = entry.get("facility_name")
         params: MutableMapping[str, Any] = {}
         date_from = normalize_date_value(
             entry.get("check_in_date")
@@ -643,6 +690,10 @@ def fetch_child_records(
             item.setdefault("reservation_id", reservation_id)
             if reservation_number and not item.get("reservation_number"):
                 item["reservation_number"] = reservation_number
+            if facility_code and not item.get("facility_code"):
+                item["facility_code"] = facility_code
+            if facility_name and not item.get("facility_name"):
+                item["facility_name"] = facility_name
             normalize_person_counts(item)
             normalize_reservation_identity(item)
             normalize_guest_info(item)
@@ -678,10 +729,17 @@ def export_records(
     records: list[dict[str, Any]],
     columns: Sequence[str],
     output: OutputSettings,
+    incremental_active: bool,
+    run_date: date,
 ) -> list[Path]:
     ensure_output_dir(output.local_directory)
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    base_name = f"{output.filename_prefix}_{timestamp}_{name}"
+    run_date_str = run_date.strftime("%Y%m%d")
+    incremental_suffix = "updates" if incremental_active else "full"
+    range_part = name
+    dataset_part = name
+    if "_" in name:
+        range_part, dataset_part = name.split("_", 1)
+    base_name = f"{output.filename_prefix}_{dataset_part}_{range_part}_{incremental_suffix}_{run_date_str}"
     produced: list[Path] = []
     fieldnames: list[str]
     if columns:
@@ -689,7 +747,8 @@ def export_records(
     else:
         fieldnames = sorted({key for row in records for key in row})
 
-    if "csv" in output.formats:
+    produced_local: list[Path] = []
+    if output.local_enabled and "csv" in output.formats:
         csv_path = output.local_directory / f"{base_name}.csv"
         with csv_path.open("w", newline="", encoding="utf-8-sig") as handle:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -697,14 +756,19 @@ def export_records(
             for row in records:
                 writer.writerow(select_columns(row, fieldnames))
         produced.append(csv_path)
-    if "json" in output.formats:
+        produced_local.append(csv_path)
+    if output.local_enabled and "json" in output.formats:
         json_path = output.local_directory / f"{base_name}.json"
         with json_path.open("w", encoding="utf-8") as handle:
             json.dump([select_columns(row, fieldnames) for row in records], handle, ensure_ascii=False, indent=2)
         produced.append(json_path)
+        produced_local.append(json_path)
 
-    if output.destination.lower() == "s3":
+    if output.s3_enabled and produced:
         upload_to_s3(produced, output)
+    if not output.local_enabled:
+        produced = []
+    produced.extend(produced_local)
     return produced
 
 
@@ -828,7 +892,14 @@ def main() -> None:
             column_selection = settings.columns.rooms
         if not records and not column_selection:
             continue
-        produced = export_records(name, records, columns=column_selection, output=settings.output)
+        produced = export_records(
+            name,
+            records,
+            columns=column_selection,
+            output=settings.output,
+            incremental_active=bool(incremental_window),
+            run_date=start_time.date(),
+        )
         for path in produced:
             print(f"[info] wrote {path}")
 
