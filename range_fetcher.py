@@ -29,8 +29,10 @@ DEFAULT_COLUMNS: dict[str, tuple[str, ...]] = {
         "check_in_date",
         "check_out_date",
         "created",
+        "created_datetime",
         "control_status",
         "last_modified",
+        "last_modified_datetime",
         "person_count",
         "person_count_adult",
         "person_count_child_a",
@@ -449,21 +451,30 @@ def normalize_facility_info(row: MutableMapping[str, Any]) -> None:
     if not isinstance(main_guest, Mapping):
         return
     remarks = main_guest.get("remarks")
-    if not isinstance(remarks, Mapping):
+    remark_entries: list[Mapping[str, Any]] = []
+    if isinstance(remarks, Mapping):
+        remark_entries = [remarks]
+    elif isinstance(remarks, list):
+        remark_entries = [entry for entry in remarks if isinstance(entry, Mapping)]
+    if not remark_entries:
         return
-    youcom = remarks.get("youcom_hotel")
-    if isinstance(youcom, Mapping):
-        code = youcom.get("id")
-        name = youcom.get("name")
-        if code and not row.get("facility_code"):
-            row["facility_code"] = code
-        if name and not row.get("facility_name"):
-            row["facility_name"] = name
-    division = remarks.get("division")
-    if isinstance(division, Mapping):
-        div_name = division.get("name")
-        if div_name and not row.get("reservation_type"):
-            row["reservation_type"] = div_name
+
+    for entry in remark_entries:
+        youcom = entry.get("youcom_hotel")
+        if isinstance(youcom, Mapping):
+            code = youcom.get("id")
+            name = youcom.get("name")
+            if code and not row.get("facility_code"):
+                row["facility_code"] = code
+            if name and not row.get("facility_name"):
+                row["facility_name"] = name
+        division = entry.get("division")
+        if isinstance(division, Mapping):
+            div_name = division.get("name")
+            if div_name and not row.get("reservation_type"):
+                row["reservation_type"] = div_name
+        if row.get("facility_code") and row.get("facility_name") and row.get("reservation_type"):
+            break
 
 
 def enrich_reservation_from_room(row: MutableMapping[str, Any]) -> None:
@@ -562,6 +573,29 @@ def normalize_date_value(value: Any) -> str | None:
     return None
 
 
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        candidate = value.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            return None
+    return None
+
+
+def normalize_datetime_fields(row: MutableMapping[str, Any], fields: Sequence[str]) -> None:
+    for field in fields:
+        raw_value = row.get(field)
+        dt_value = _parse_datetime(raw_value)
+        if dt_value:
+            row[f"{field}_datetime"] = dt_value.isoformat()
+            row[field] = dt_value.date().isoformat()
+        elif isinstance(raw_value, date):
+            row[field] = raw_value.isoformat()
+
+
 def fetch_primary_records(
     api: ApiClient,
     range_name: str,
@@ -627,8 +661,8 @@ def fetch_primary_records(
             normalize_marketing_area(row)
             normalize_facility_info(row)
             enrich_reservation_from_room(row)
-            if not row.get("reservation_date"):
-                row["reservation_date"] = cursor_start.isoformat()
+            normalize_datetime_fields(row, ("last_modified", "created"))
+            row["reservation_date"] = cursor_start.isoformat()
             if "date_range_type" not in row:
                 row["date_range_type"] = range_name
             fp = record_fingerprint(row)
