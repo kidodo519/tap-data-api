@@ -240,6 +240,14 @@ def load_settings(path: Path) -> Settings:
     incremental_raw = fetching_raw.get("incremental_updates", {})
     columns_raw = raw.get("columns", {})
 
+    def _with_required_reservation_fields(columns: Sequence[str]) -> tuple[str, ...]:
+        required = ("created_datetime", "last_modified_datetime")
+        merged = list(columns)
+        for field in required:
+            if field not in merged:
+                merged.append(field)
+        return tuple(merged)
+
     settings = Settings(
         ranges=ranges,
         defaults=DefaultsSettings(
@@ -275,7 +283,9 @@ def load_settings(path: Path) -> Settings:
             ),
         ),
         columns=ColumnSettings(
-            reservations=tuple(columns_raw.get("reservations") or DEFAULT_COLUMNS["reservations"]),
+            reservations=_with_required_reservation_fields(
+                tuple(columns_raw.get("reservations") or DEFAULT_COLUMNS["reservations"])
+            ),
             sales=tuple(columns_raw.get("sales") or DEFAULT_COLUMNS["sales"]),
             rooms=tuple(columns_raw.get("rooms") or DEFAULT_COLUMNS["rooms"]),
         ),
